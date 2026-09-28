@@ -109,8 +109,19 @@ jobs:
         run: rustup target add x86_64-pc-windows-gnu
 
       
-      - name: Run setup.sh for windows
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+
+      - name: Set up native dependencies
+        shell: msys2 {0}
         run: ./setup.sh
+
+      - name: Build
+        shell: msys2 {0}
+        run: cargo build --target x86_64-pc-windows-gnu
 
       - name: Build static ViennaRNA for Windows
         run: |
