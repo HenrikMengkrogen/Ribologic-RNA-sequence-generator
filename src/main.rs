@@ -721,6 +721,10 @@ fn hill_climb_design(
 
     let slice_len = target_structure.len();
     let n_designable = n_positions.len();
+
+    let designable_positions: HashSet<usize> =
+        n_positions.iter().copied().collect();
+        
     let n_fixed = slice_len.saturating_sub(n_designable);
     let fixed_fraction = n_fixed as f64 / slice_len.max(1) as f64;
 
@@ -837,9 +841,16 @@ fn hill_climb_design(
     current = current_chars.into_iter().collect();
 
     let init_result = bp_distance_to_target(&current, target_structure);
-    let mut current_dist = init_result.bp_distance;
+
+    let initial_pk_mismatches =
+        pk_pair_mismatches(&current, &pair_map, target_structure);
+
+    let mut current_dist =
+        init_result.bp_distance + 2 * initial_pk_mismatches as i64;
+
     let mut current_structure = init_result.structure.clone();
     let mut current_mfe = init_result.mfe;
+
     let mut current_energy_gap =
         (energy_of_target_structure(&current, target_structure) - init_result.mfe).max(0.0);
 
@@ -946,7 +957,7 @@ fn hill_climb_design(
             .copied()
             .collect();
 
-        if use_double {
+                if use_double {
             let mut search_positions: Vec<usize> = if stuck_positions.len() >= 2 {
                 stuck_positions.clone()
             } else {
@@ -955,6 +966,7 @@ fn hill_climb_design(
 
             if search_positions.len() > 30 {
                 use rand::seq::SliceRandom;
+
                 search_positions.shuffle(&mut rng);
                 search_positions.truncate(30);
             }
@@ -962,25 +974,47 @@ fn hill_climb_design(
             let mut best_trial = candidate.clone();
             let mut best_cost = f64::MAX;
 
-            for idx1 in 0..n_positions.len() {
-                for idx2 in (idx1 + 1)..n_positions.len() {
-                    let i1 = n_positions[idx1];
-                    let i2 = n_positions[idx2];
+            for idx1 in 0..search_positions.len() {
+                for idx2 in (idx1 + 1)..search_positions.len() {
+                    let i1 = search_positions[idx1];
+                    let i2 = search_positions[idx2];
 
-                    let opts1: Vec<char> = if let Some(&j) = pair_map.get(&i1) {
-                        if seq_in_chars[j] != 'N' {
-                            vec![comp_dict[&seq_in_chars[j]]]
-                        } else {
+                    
+                    if pair_map.get(&i1) == Some(&i2) {
+                        continue;
+                    }
+
+                    let opts1: Vec<char> = if let Some(&j1) = pair_map.get(&i1) {
+                        if designable_positions.contains(&j1) {
                             nucleotides.clone()
+                        } else {
+                            let fixed_partner = candidate[j1];
+
+                            vec![
+                                *comp_dict
+                                    .get(&fixed_partner)
+                                    .expect(
+                                        "fixed paired position must contain A, U, G, or C",
+                                    ),
+                            ]
                         }
                     } else {
                         nucleotides.clone()
                     };
-                    let opts2: Vec<char> = if let Some(&j) = pair_map.get(&i2) {
-                        if seq_in_chars[j] != 'N' {
-                            vec![comp_dict[&seq_in_chars[j]]]
-                        } else {
+
+                    let opts2: Vec<char> = if let Some(&j2) = pair_map.get(&i2) {
+                        if designable_positions.contains(&j2) {
                             nucleotides.clone()
+                        } else {
+                            let fixed_partner = candidate[j2];
+
+                            vec![
+                                *comp_dict
+                                    .get(&fixed_partner)
+                                    .expect(
+                                        "fixed paired position must contain A, U, G, or C",
+                                    ),
+                            ]
                         }
                     } else {
                         nucleotides.clone()
@@ -990,26 +1024,35 @@ fn hill_climb_design(
                         for &n2 in &opts2 {
                             let mut trial = candidate.clone();
 
+                            
                             trial[i1] = n1;
+
                             if let Some(&j1) = pair_map.get(&i1) {
-                                if seq_in_chars[j1] == 'N' {
+                                if designable_positions.contains(&j1) {
                                     trial[j1] = comp_dict[&n1];
                                 }
                             }
 
+                            
                             trial[i2] = n2;
+
                             if let Some(&j2) = pair_map.get(&i2) {
-                                if seq_in_chars[j2] == 'N' {
+                                if designable_positions.contains(&j2) {
                                     trial[j2] = comp_dict[&n2];
                                 }
                             }
 
                             let trial_str: String = trial.iter().collect();
-                            let trial_result = bp_distance_to_target(&trial_str, target_structure);
+
+                            let trial_result =
+                                bp_distance_to_target(&trial_str, target_structure);
+
                             let pk_mismatches =
                                 pk_pair_mismatches(&trial_str, &pair_map, target_structure);
+
                             let trial_cost =
-                                trial_result.bp_distance as f64 + 2.0 * pk_mismatches as f64;
+                                trial_result.bp_distance as f64
+                                    + 2.0 * pk_mismatches as f64;
 
                             if trial_cost < best_cost {
                                 best_cost = trial_cost;
@@ -1030,20 +1073,36 @@ fn hill_climb_design(
             };
 
             if let Some(&j) = pair_map.get(&i) {
-                if seq_in_chars[j] != 'N' {
+                
+                if !designable_positions.contains(&j) {
                     let current_nuc = candidate[i];
                     let mut best_nuc = current_nuc;
                     let mut best_cost = f64::MAX;
 
+                    
+                    let fixed_partner = candidate[j];
+
+                    let allowed_nucs = vec![
+                        *comp_dict
+                            .get(&fixed_partner)
+                            .expect("fixed paired position must contain A, U, G, or C"),
+                    ];
+
                     for &nuc in &nucleotides {
                         let mut trial = candidate.clone();
                         trial[i] = nuc;
+
                         let trial_str: String = trial.iter().collect();
-                        let trial_result = bp_distance_to_target(&trial_str, target_structure);
+
+                        let trial_result =
+                            bp_distance_to_target(&trial_str, target_structure);
+
                         let pk_mismatches =
                             pk_pair_mismatches(&trial_str, &pair_map, target_structure);
+
                         let trial_cost =
-                            trial_result.bp_distance as f64 + 2.0 * pk_mismatches as f64;
+                            trial_result.bp_distance as f64
+                                + 2.0 * pk_mismatches as f64;
 
                         if trial_cost < best_cost {
                             best_cost = trial_cost;
@@ -1052,10 +1111,12 @@ fn hill_climb_design(
                     }
 
                     if best_nuc == current_nuc {
-                        best_nuc = nucleotides[rng.random_range(0..nucleotides.len())];
+                        best_nuc = allowed_nucs[0];
                     }
+
                     candidate[i] = best_nuc;
                 } else {
+                    // Both sides are designable: mutate them as a valid pair.
                     let current_pair = (candidate[i], candidate[j]);
                     let mut best_pair = current_pair;
                     let mut best_cost = f64::MAX;
@@ -1064,12 +1125,18 @@ fn hill_climb_design(
                         let mut trial = candidate.clone();
                         trial[i] = ni;
                         trial[j] = nj;
+
                         let trial_str: String = trial.iter().collect();
-                        let trial_result = bp_distance_to_target(&trial_str, target_structure);
+
+                        let trial_result =
+                            bp_distance_to_target(&trial_str, target_structure);
+
                         let pk_mismatches =
                             pk_pair_mismatches(&trial_str, &pair_map, target_structure);
+
                         let trial_cost =
-                            trial_result.bp_distance as f64 + 2.0 * pk_mismatches as f64;
+                            trial_result.bp_distance as f64
+                                + 2.0 * pk_mismatches as f64;
 
                         if trial_cost < best_cost {
                             best_cost = trial_cost;
@@ -1078,13 +1145,15 @@ fn hill_climb_design(
                     }
 
                     if best_pair == current_pair {
-                        let idx = rng.random_range(0..pair_options.len());
-                        best_pair = pair_options[idx];
+                        best_pair =
+                            pair_options[rng.random_range(0..pair_options.len())];
                     }
+
                     candidate[i] = best_pair.0;
                     candidate[j] = best_pair.1;
                 }
             } else {
+                // i is unpaired in the target structure.
                 let current_nuc = candidate[i];
                 let mut best_nuc = current_nuc;
                 let mut best_cost = f64::MAX;
@@ -1092,10 +1161,18 @@ fn hill_climb_design(
                 for &nuc in &nucleotides {
                     let mut trial = candidate.clone();
                     trial[i] = nuc;
+
                     let trial_str: String = trial.iter().collect();
-                    let trial_result = bp_distance_to_target(&trial_str, target_structure);
-                    let pk_mismatches = pk_pair_mismatches(&trial_str, &pair_map, target_structure);
-                    let trial_cost = trial_result.bp_distance as f64 + 2.0 * pk_mismatches as f64;
+
+                    let trial_result =
+                        bp_distance_to_target(&trial_str, target_structure);
+
+                    let pk_mismatches =
+                        pk_pair_mismatches(&trial_str, &pair_map, target_structure);
+
+                    let trial_cost =
+                        trial_result.bp_distance as f64
+                            + 2.0 * pk_mismatches as f64;
 
                     if trial_cost < best_cost {
                         best_cost = trial_cost;
@@ -1106,11 +1183,13 @@ fn hill_climb_design(
                 if best_nuc == current_nuc {
                     best_nuc = nucleotides[rng.random_range(0..nucleotides.len())];
                 }
+
                 candidate[i] = best_nuc;
             }
         }
 
         let candidate_string: String = candidate.into_iter().collect();
+
 
         // --- Evaluate candidate ---
         let guard_result = bp_distance_to_target(&candidate_string, target_structure);
@@ -1233,6 +1312,7 @@ fn hill_climb_design(
         })
         .collect()
 }
+    
 
 fn multi_start_hill_climb_design(
     seq_in: &str,
