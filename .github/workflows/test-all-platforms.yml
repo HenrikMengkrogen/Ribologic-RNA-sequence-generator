@@ -14,102 +14,43 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Native Intel macOS runner
           - name: macOS Intel
             os: macos-13
             target: x86_64-apple-darwin
 
+          # Native Apple Silicon macOS runner
           - name: macOS Apple Silicon
             os: macos-14
             target: aarch64-apple-darwin
 
+          # Native Intel/AMD Linux runner
           - name: Linux x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+          # Native ARM64 Linux runner
+          #
+          # Availability depends on repository visibility and GitHub plan.
+          # If this label is unavailable for your repository, use a
+          # self-hosted ARM64 Linux runner instead.
+          - name: Linux ARM64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
 
-      - name: Install Rust target
-        shell: bash
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Install libclang on Linux
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libclang-dev
-
-      - name: Install LLVM/libclang on macOS
-        if: runner.os == 'macOS'
-        run: |
-          brew install llvm
-          echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> "$GITHUB_ENV"
-
-      - name: Show selected native-library directory
-        shell: bash
-        run: |
-          echo "Target: ${{ matrix.target }}"
-          find "vendor/RNAlib/prebuilt/${{ matrix.target }}" \
-            -maxdepth 1 \
-            -type f \
-            -print \
-            || true
-            
-      - name: Build and stage native libraries on macOS
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          chmod +x ./setup.sh
-          ./setup.sh
-
-      - name: Run tests
-        run: cargo test --locked --target ${{ matrix.target }}
-      
-      - name: Build
-        run : cargo build 
-
-  # This is a separate job, not part of matrix.include.
-  # It needs MSYS2 and must build the MinGW ViennaRNA dependencies first.
-  windows-gnu:
-    name: Windows x86_64 GNU
-    runs-on: windows-latest
-
-    defaults:
-      run:
-        shell: msys2 {0}
+          # Native Windows x86_64, using the GNU/MinGW Rust target.
+          - name: Windows x86_64 GNU
+            os: windows-latest
+            target: x86_64-pc-windows-gnu
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up MSYS2 and MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-clang
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-gmp
-            mingw-w64-x86_64-mpfr
-            mingw-w64-x86_64-gsl
-            git
-            curl
-            make
-            autoconf
-            automake
-            libtool
-            bison
-            flex
-
-      - name: Install Rust GNU target
-        shell: pwsh
-        run: rustup target add x86_64-pc-windows-gnu
-
-      
-      - name: Set up MSYS2
+      # This installs MSYS2 itself so setup.sh can run in its required
+      # MINGW64 shell. Project dependencies must be installed by setup.sh.
+      - name: Set up MSYS2 shell
+        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -117,88 +58,42 @@ jobs:
           path-type: minimal
           cache: true
 
-          # Avoid the default D:\a\_temp\msys64 location collision.
-          location: D:\a\msys64-ribologic
+          # Avoid the action's default MSYS2 path, which can collide with
+          # an existing directory on GitHub-hosted Windows runners.
+          location: ${{ runner.temp }}\ribosome-msys64
 
-          # MINGW64 is appropriate for the x86_64-pc-windows-gnu
-          # target and your existing MinGW-built static archives.
           suppress-deprecation-warnings: msystem-mingw64
 
-      - name: Set up native dependencies
+      # setup.sh is responsible for installing all project dependencies:
+      #
+      # - Rust/rustup and the appropriate Rust target
+      # - compiler and build tools
+      # - libclang / LLVM for bindgen
+      # - ViennaRNA and its native dependencies
+      # - staging native libraries for build.rs
+      #
+      # Source the script so environment exports such as PATH, CARGO_HOME,
+      # LIBCLANG_PATH, PKG_CONFIG_PATH, etc. remain available afterward.
+      - name: Setup, test, and build
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          chmod +x ./setup.sh
+          source ./setup.sh
+
+          cargo test --locked --target "${{ matrix.target }}"
+          cargo build --locked --target "${{ matrix.target }}"
+
+      - name: Setup, test, and build
+        if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: ./setup.sh
-
-      - name: Build
-        shell: msys2 {0}
-        run: cargo build --target x86_64-pc-windows-gnu
-
-      - name: Build static ViennaRNA for Windows
         run: |
-          set -euxo pipefail
+          set -euo pipefail
 
-          BUILD_ROOT="$RUNNER_TEMP/viennarna-windows-build"
-          mkdir -p "$BUILD_ROOT"
-          cd "$BUILD_ROOT"
+          chmod +x ./setup.sh
+          source ./setup.sh
 
-          curl --fail --location \
-            --retry 5 \
-            --retry-delay 5 \
-            --connect-timeout 30 \
-            --max-time 300 \
-            -o ViennaRNA-2.7.0.tar.gz \
-            https://github.com/ViennaRNA/ViennaRNA/releases/download/v2.7.0/ViennaRNA-2.7.0.tar.gz
-
-          tar -xf ViennaRNA-2.7.0.tar.gz
-          cd ViennaRNA-2.7.0
-
-          export PATH="/mingw64/bin:$PATH"
-          export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig"
-          export CC=gcc
-          export CXX=g++
-          export CPPFLAGS="-I$PWD/src -I/mingw64/include"
-          export CFLAGS="-std=gnu17 -fno-lto"
-          export CXXFLAGS="-std=gnu++17 -fno-lto -include cstdint"
-          export LDFLAGS="-fno-lto -L/mingw64/lib -lws2_32 -lwinmm"
-
-          ./configure \
-            --prefix="/mingw64" \
-            --disable-shared \
-            --enable-static \
-            --without-openmp \
-            --without-swig \
-            --without-svm \
-            --without-forester
-
-          make -j1
-
-          RNA_ARCHIVE="$(find . -type f -name libRNA.a -print -quit)"
-          test -n "$RNA_ARCHIVE"
-
-          mkdir -p /mingw64/lib
-          cp "$RNA_ARCHIVE" /mingw64/lib/libRNA.a
-
-      - name: Stage Windows GNU libraries for build.rs
-        run: |
-          set -euxo pipefail
-
-          OUT_DIR="$GITHUB_WORKSPACE/vendor/RNAlib/prebuilt/x86_64-pc-windows-gnu"
-          mkdir -p "$OUT_DIR"
-
-          cp /mingw64/lib/libRNA.a "$OUT_DIR/"
-          cp /mingw64/lib/libgmp.a "$OUT_DIR/"
-          cp /mingw64/lib/libmpfr.a "$OUT_DIR/"
-          cp /mingw64/lib/libgsl.a "$OUT_DIR/"
-          cp /mingw64/lib/libgslcblas.a "$OUT_DIR/"
-
-          ls -lah "$OUT_DIR"
-
-      - name: Run Windows GNU tests
-        run: |
-          set -euxo pipefail
-
-          export PATH="/c/Users/runneradmin/.cargo/bin:/mingw64/bin:$PATH"
-          export LIBCLANG_PATH=/mingw64/bin
-
-          cargo test --locked --target x86_64-pc-windows-gnu
-          cargo build x86_64-pc-windows-gnu
-
+          cargo test --locked --target "${{ matrix.target }}"
+          cargo build --locked --target "${{ matrix.target }}"
