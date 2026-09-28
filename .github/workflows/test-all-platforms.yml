@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  test-unix:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
 
@@ -14,68 +14,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Native Intel macOS runner
           - name: macOS Intel
             os: macos-13
             target: x86_64-apple-darwin
 
-          # Native Apple Silicon macOS runner
           - name: macOS Apple Silicon
             os: macos-14
             target: aarch64-apple-darwin
 
-          # Native Intel/AMD Linux runner
           - name: Linux x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
 
-          # Native ARM64 Linux runner
-          #
-          # Availability depends on repository visibility and GitHub plan.
-          # If this label is unavailable for your repository, use a
-          # self-hosted ARM64 Linux runner instead.
+          # GitHub-hosted ARM64 runner availability depends on repository
+          # visibility and GitHub plan.
           - name: Linux ARM64
             os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-
-          # Native Windows x86_64, using the GNU/MinGW Rust target.
-          - name: Windows x86_64 GNU
-            os: windows-latest
-            target: x86_64-pc-windows-gnu
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # This installs MSYS2 itself so setup.sh can run in its required
-      # MINGW64 shell. Project dependencies must be installed by setup.sh.
-      - name: Set up MSYS2 shell
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          path-type: minimal
-          cache: true
-
-          # Avoid the action's default MSYS2 path, which can collide with
-          # an existing directory on GitHub-hosted Windows runners.
-          location: ${{ runner.temp }}\ribosome-msys64
-
-          suppress-deprecation-warnings: msystem-mingw64
-
-      # setup.sh is responsible for installing all project dependencies:
-      #
-      # - Rust/rustup and the appropriate Rust target
-      # - compiler and build tools
-      # - libclang / LLVM for bindgen
-      # - ViennaRNA and its native dependencies
-      # - staging native libraries for build.rs
-      #
-      # Source the script so environment exports such as PATH, CARGO_HOME,
-      # LIBCLANG_PATH, PKG_CONFIG_PATH, etc. remain available afterward.
+      # setup.sh installs all dependencies, including Rust target support,
+      # LLVM/libclang, ViennaRNA, and native libraries.
       - name: Setup, test, and build
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -86,17 +49,63 @@ jobs:
           cargo test --locked --target "${{ matrix.target }}"
           cargo build --locked --target "${{ matrix.target }}"
 
-      - name: Setup, test, and build
-        if: runner.os == 'Windows'
+  windows-gnu:
+    name: Windows x86_64 GNU
+    runs-on: windows-latest
+
+    defaults:
+      run:
         shell: msys2 {0}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # This installs MSYS2 itself. setup.sh installs all actual project
+      # dependencies with pacman and builds/stages ViennaRNA.
+      - name: Set up MSYS2 shell
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: minimal
+          cache: true
+          location: ${{ runner.temp }}\ribosome-msys64
+          suppress-deprecation-warnings: msystem-mingw64
+
+      # Do not source this script here. setup.sh writes Cargo's directory to
+      # GITHUB_PATH, which GitHub applies to subsequent workflow steps.
+      - name: Set up Windows dependencies
         run: |
           set -euo pipefail
-          export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
-          cargo --version
-
 
           chmod +x ./setup.sh
-          source ./setup.sh
+          ./setup.sh
 
-          cargo test --locked --target "${{ matrix.target }}"
-          cargo build --locked --target "${{ matrix.target }}"
+      # This verifies that setup.sh successfully persisted Cargo's directory
+      # through GITHUB_PATH.
+      - name: Verify Rust and toolchain
+        run: |
+          set -euo pipefail
+
+          echo "PATH=$PATH"
+
+          command -v cargo
+          command -v rustc
+          command -v gcc
+          command -v clang
+
+          cargo --version
+          rustc --version
+
+      - name: Run Windows GNU tests
+        run: |
+          set -euo pipefail
+
+          cargo test --locked --target x86_64-pc-windows-gnu
+
+      - name: Build Windows GNU binary
+        run: |
+          set -euo pipefail
+
+          cargo build --locked --target x86_64-pc-windows-gnu
