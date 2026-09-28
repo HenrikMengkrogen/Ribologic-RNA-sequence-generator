@@ -66,7 +66,7 @@ jobs:
       - name: Run tests
         run: cargo test --locked --target ${{ matrix.target }}
       
-    - name: Build
+      - name: Build
         run : cargo build -- locked --target ${{ matrix.target }} 
 
   # This is a separate job, not part of matrix.include.
