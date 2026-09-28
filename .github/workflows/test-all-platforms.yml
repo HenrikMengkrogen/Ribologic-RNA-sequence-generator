@@ -67,7 +67,7 @@ jobs:
         run: cargo test --locked --target ${{ matrix.target }}
       
       - name: Build
-        run : cargo build -- locked --target ${{ matrix.target }} 
+        run : cargo build ${{ matrix.target }} 
 
   # This is a separate job, not part of matrix.include.
   # It needs MSYS2 and must build the MinGW ViennaRNA dependencies first.
@@ -107,6 +107,10 @@ jobs:
       - name: Install Rust GNU target
         shell: pwsh
         run: rustup target add x86_64-pc-windows-gnu
+
+      
+      - name: Run setup.sh for windows
+        run: ./setup.sh
 
       - name: Build static ViennaRNA for Windows
         run: |
@@ -176,3 +180,5 @@ jobs:
           export LIBCLANG_PATH=/mingw64/bin
 
           cargo test --locked --target x86_64-pc-windows-gnu
+          cargo build x86_64-pc-windows-gnu
+
