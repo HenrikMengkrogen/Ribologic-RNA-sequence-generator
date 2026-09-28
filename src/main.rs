@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 mod ffi;
 use ffi::*;
 
@@ -657,20 +658,41 @@ pub fn bp_distance_to_target(seq: &str, target: &str) -> DesignResult {
         }
         let fold_seq = String::from_utf8(fold_seq_bytes).unwrap();
 
-        let seq_c = CString::new(fold_seq).expect("seq has interior NUL");
-        let fc = vrna_fold_compound(seq_c.as_ptr(), &md, VRNA_OPTION_MFE as u32);
+        /*
+        * Pass a borrowed byte slice to CString::new rather than moving fold_seq.
+        * This is portable and means fold_seq remains available if needed later.
+        */
+        let seq_c = CString::new(fold_seq.as_bytes()).expect("seq has interior NUL");
 
-        let mut structure = vec![0i8; n + 1];
+        let fc = vrna_fold_compound(
+            seq_c.as_ptr(),
+            &md,
+            VRNA_OPTION_MFE as u32,
+        );
+
+        assert!(!fc.is_null(), "vrna_fold_compound returned null");
+
+        let mut structure: Vec<c_char> = vec![0; n + 1];
         let mfe = vrna_mfe(fc, structure.as_mut_ptr());
 
-        let structure_bytes: Vec<u8> = structure.iter().take(n).map(|&c| c as u8).collect();
-        let structure_cstr = CString::new(structure_bytes).unwrap();
-        let structure_str = structure_cstr.to_str().unwrap().to_string();
+        let structure_str = CStr::from_ptr(structure.as_ptr())
+            .to_string_lossy()
+            .into_owned();
 
-        let target_c = CString::new(target_no_pk.clone()).unwrap();
-        let distance = vrna_bp_distance(target_c.as_ptr(), structure_cstr.as_ptr());
+        let target_c = CString::new(target_no_pk.as_bytes())
+            .expect("target structure has interior NUL");
+
+        let structure_c = CString::new(structure_str.as_bytes())
+            .expect("returned structure has interior NUL");
+
+        let distance = vrna_bp_distance(
+            target_c.as_ptr(),
+            structure_c.as_ptr(),
+        );
 
         vrna_fold_compound_free(fc);
+
+
 
         DesignResult {
             bp_distance: distance as i64,
@@ -2055,14 +2077,15 @@ fn compute_pf_defect(seq: &str, target: &str) -> (f64, Vec<f64>, f64, f64) {
         );
         assert!(!fc.is_null(), "fold_compound returned null");
 
-        let mut mfe_struct = vec![0i8; n + 1];
+        let mut mfe_struct: Vec<c_char> = vec![0; n + 1];
         let mfe = vrna_mfe(fc, mfe_struct.as_mut_ptr());
 
         let mut mfe_scaled: f64 = mfe as f64;
         vrna_exp_params_rescale(fc, &mut mfe_scaled);
 
-        let mut pf_struct = vec![0i8; n + 1];
+        let mut pf_struct: Vec<c_char> = vec![0; n + 1];
         let _pf_energy = vrna_pf(fc, pf_struct.as_mut_ptr());
+
 
         let exp_matrices = (*fc).exp_matrices;
         assert!(!exp_matrices.is_null(), "exp_matrices is null");
