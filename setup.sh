@@ -148,17 +148,16 @@ setup_rust() {
     local cargo_home
 
     if [[ "$OS" == "windows" ]]; then
-        # On GitHub's Windows runner, Rust is installed in the Windows
-        # user profile, e.g. C:\Users\runneradmin\.cargo, not necessarily
-        # in MSYS2's $HOME directory.
-        have cygpath || die "cygpath was not found; run this under MSYS2."
+        have cygpath ||
+            die "cygpath was not found. Run this script in MSYS2."
 
+        # GitHub's Windows runners install Rust in the Windows account's
+        # profile, e.g. C:\Users\runneradmin\.cargo.
         cargo_home="$(cygpath -u "${CARGO_HOME:-${USERPROFILE}\.cargo}")"
     else
         cargo_home="${CARGO_HOME:-$HOME/.cargo}"
     fi
 
-    # rustup-init cannot alter PATH for the shell that is already running.
     export CARGO_HOME="$cargo_home"
     export PATH="$CARGO_HOME/bin:$PATH"
 
@@ -173,7 +172,7 @@ setup_rust() {
         echo "Installing Rust..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-        # Make the freshly installed cargo.exe visible right now.
+        # rustup-init cannot change PATH in this already-running shell.
         export PATH="$CARGO_HOME/bin:$PATH"
 
         if [[ -f "$CARGO_HOME/env" ]]; then
@@ -182,21 +181,32 @@ setup_rust() {
         fi
     fi
 
-    have cargo || die \
-        "Rust installation failed; cargo was not found. Checked: $CARGO_HOME/bin"
+    have cargo ||
+        die "Rust installation failed; cargo was not found at $CARGO_HOME/bin."
 
-    have rustup || die \
-        "Rust installation failed; rustup was not found. Checked: $CARGO_HOME/bin"
+    have rustup ||
+        die "Rust installation failed; rustup was not found at $CARGO_HOME/bin."
 
     if [[ "$OS" == "windows" ]]; then
         echo "Installing/selecting the Windows GNU Rust toolchain..."
 
-        # libRNA.a and the other vendored archives are MinGW/GNU archives.
         rustup toolchain install stable-x86_64-pc-windows-gnu
+
+        # Repository-local selection; does not permanently change the
+        # developer's global Rust toolchain.
         rustup override set stable-x86_64-pc-windows-gnu
+
         rustup target add \
             --toolchain stable-x86_64-pc-windows-gnu \
             x86_64-pc-windows-gnu
+
+        # Persist Cargo's location into later GitHub Actions steps.
+        #
+        # This has no effect outside GitHub Actions, because GITHUB_PATH
+        # is not normally defined on a developer's local machine.
+        if [[ -n "${GITHUB_PATH:-}" ]]; then
+            cygpath -w "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+        fi
     fi
 
     ok "Rust ready: $(cargo --version)"

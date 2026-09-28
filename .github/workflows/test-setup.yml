@@ -64,19 +64,24 @@ jobs:
         run: cargo build --locked --target "${{ matrix.target }}"
 
       # Windows — must run inside the MSYS2 MINGW64 shell.
-      - name: Run setup
+      - name: Set up MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: minimal
+          cache: true
+          suppress-deprecation-warnings: msystem-mingw64
+
+      - name: Setup, test, and build
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
+          export PATH="$(cygpath -u "$USERPROFILE")/.cargo/bin:$PATH"
+
           chmod +x ./setup.sh
           ./setup.sh
 
-      - name: Run tests
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: cargo test --locked --target "${{ matrix.target }}"
-
-      - name: Build
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: cargo build --locked --target "${{ matrix.target }}"
+          cargo test --locked --target "${{ matrix.target }}"
+          cargo build --locked --target "${{ matrix.target }}"
