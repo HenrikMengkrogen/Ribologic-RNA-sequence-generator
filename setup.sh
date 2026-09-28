@@ -185,23 +185,51 @@ fi
 
 setup_rust() {
     if [[ "$OS" == "windows" ]]; then
-        # CARGO_HOME and RUSTUP_HOME were established before this function,
-        # using USERPROFILE. Example:
-        # /c/Users/runneradmin/.cargo
-        export PATH="$CARGO_HOME/bin:$PATH"
+        have cygpath ||
+            die "cygpath was not found. Run this script from MSYS2 MinGW x64."
+
+        # If Cargo is already visible, preserve the existing configuration.
+        #
+        # This supports:
+        # - Rust installed through rustup on Windows
+        # - a GitHub Actions Windows runner
+        # - Cargo already configured by the developer
+        if have cargo; then
+            CARGO_BIN_DIR="$(dirname "$(command -v cargo)")"
+            export PATH="$CARGO_BIN_DIR:$PATH"
+
+            # Only infer CARGO_HOME if the user did not explicitly set it.
+            if [[ -z "${CARGO_HOME:-}" ]]; then
+                export CARGO_HOME="$(dirname "$CARGO_BIN_DIR")"
+            fi
+        else
+            # Standard rustup location for the current Windows user.
+            #
+            # USERPROFILE example:
+            # C:\Users\Alice
+            #
+            # Converted MSYS2 path:
+            # /c/Users/Alice
+            WINDOWS_HOME="$(cygpath -u "${USERPROFILE:-}")"
+
+            [[ -n "$WINDOWS_HOME" && "$WINDOWS_HOME" != "." ]] ||
+                die "USERPROFILE is not set; cannot determine the Windows Rust installation directory."
+
+            export CARGO_HOME="${CARGO_HOME:-$WINDOWS_HOME/.cargo}"
+            export RUSTUP_HOME="${RUSTUP_HOME:-$WINDOWS_HOME/.rustup}"
+            export PATH="$CARGO_HOME/bin:$PATH"
+        fi
     else
         export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
         export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
         export PATH="$CARGO_HOME/bin:$PATH"
     fi
 
-    # On macOS/Linux, rustup commonly supplies this environment file.
     if ! have cargo && [[ -f "$CARGO_HOME/env" ]]; then
         # shellcheck disable=SC1090
         source "$CARGO_HOME/env"
     fi
 
-    # Usually unnecessary on GitHub-hosted runners, but useful locally.
     if ! have cargo; then
         need_curl
 
@@ -219,10 +247,10 @@ setup_rust() {
     fi
 
     have cargo ||
-        die "Rust installation failed: cargo was not found in $CARGO_HOME/bin."
+        die "Rust installation failed: cargo was not found."
 
     have rustup ||
-        die "Rust installation failed: rustup was not found in $CARGO_HOME/bin."
+        die "Rust installation failed: rustup was not found."
 
     if [[ "$OS" == "windows" ]]; then
         echo "Installing/selecting Windows GNU Rust toolchain..."
@@ -234,28 +262,22 @@ setup_rust() {
             --toolchain stable-x86_64-pc-windows-gnu \
             x86_64-pc-windows-gnu
 
-        # Persist Cargo and MinGW paths into later GitHub Actions steps.
-        #
-        # These must be Windows paths, hence `cygpath -w`.
+        # Only relevant in GitHub Actions; harmless for local users.
         if [[ -n "${GITHUB_PATH:-}" ]]; then
-            echo "Persisting Cargo and MinGW directories to GitHub Actions PATH..."
-
-            cygpath -w "$CARGO_HOME/bin" | tee -a "$GITHUB_PATH"
-            cygpath -w "/mingw64/bin" | tee -a "$GITHUB_PATH"
-        else
-            warn "GITHUB_PATH is not set; PATH changes apply only to this shell."
+            cygpath -w "$(dirname "$(command -v cargo)")" >> "$GITHUB_PATH"
+            cygpath -w "/mingw64/bin" >> "$GITHUB_PATH"
         fi
     else
         rustup target add "$RUST_TARGET"
     fi
 
-    echo "CARGO_HOME: ${CARGO_HOME:-unset}"
     echo "Cargo location:  $(command -v cargo)"
     echo "Rustup location: $(command -v rustup)"
 
     ok "Rust ready: $(cargo --version)"
     ok "Rust compiler: $(rustc --version)"
 }
+
 
 
 
