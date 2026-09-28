@@ -114,6 +114,15 @@ jobs:
         with:
           msystem: MINGW64
           update: true
+          path-type: minimal
+          cache: true
+
+          # Avoid the default D:\a\_temp\msys64 location collision.
+          location: D:\a\msys64-ribologic
+
+          # MINGW64 is appropriate for the x86_64-pc-windows-gnu
+          # target and your existing MinGW-built static archives.
+          suppress-deprecation-warnings: msystem-mingw64
 
       - name: Set up native dependencies
         shell: msys2 {0}
