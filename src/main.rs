@@ -1116,7 +1116,7 @@ fn hill_climb_design(
 
                     candidate[i] = best_nuc;
                 } else {
-                    // Both sides are designable: mutate them as a valid pair.
+                    
                     let current_pair = (candidate[i], candidate[j]);
                     let mut best_pair = current_pair;
                     let mut best_cost = f64::MAX;
@@ -1153,7 +1153,7 @@ fn hill_climb_design(
                     candidate[j] = best_pair.1;
                 }
             } else {
-                // i is unpaired in the target structure.
+                
                 let current_nuc = candidate[i];
                 let mut best_nuc = current_nuc;
                 let mut best_cost = f64::MAX;
@@ -1191,7 +1191,7 @@ fn hill_climb_design(
         let candidate_string: String = candidate.into_iter().collect();
 
 
-        // --- Evaluate candidate ---
+        
         let guard_result = bp_distance_to_target(&candidate_string, target_structure);
         let cand_pk_mismatches = pk_pair_mismatches(&candidate_string, &pair_map, target_structure);
         let cand_dist = guard_result.bp_distance + 2 * cand_pk_mismatches as i64;
