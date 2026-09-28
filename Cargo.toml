@@ -1,5 +1,5 @@
 [package]
-name = "Ribologic-RNA-sequence-generator
+name = "Ribologic-RNA-sequence-generator"
 version = "0.1.0"
 edition = "2024"
 build = "build.rs"
