@@ -142,6 +142,28 @@ if [[ "$OS" != "windows" && "$(id -u)" -ne 0 ]]; then
     fi
 fi
 
+# Make the GitHub-hosted Windows Rust installation available from MSYS2.
+if [[ "${OS:-}" == "Windows_NT" ]] || [[ "$(uname -s)" =~ ^MINGW|^MSYS ]]; then
+    if command -v cygpath >/dev/null 2>&1 && [[ -n "${USERPROFILE:-}" ]]; then
+        export CARGO_HOME="${CARGO_HOME:-$(cygpath -u "$USERPROFILE")/.cargo}"
+        export RUSTUP_HOME="${RUSTUP_HOME:-$(cygpath -u "$USERPROFILE")/.rustup}"
+    else
+        export CARGO_HOME="${CARGO_HOME:-/c/Users/runneradmin/.cargo}"
+        export RUSTUP_HOME="${RUSTUP_HOME:-/c/Users/runneradmin/.rustup}"
+    fi
+
+    export PATH="$CARGO_HOME/bin:$PATH"
+fi
+
+echo "Cargo location: $(command -v cargo || echo 'NOT FOUND')"
+echo "Rustup location: $(command -v rustup || echo 'NOT FOUND')"
+
+command -v cargo >/dev/null 2>&1 || {
+    echo "ERROR: cargo was not found after configuring PATH" >&2
+    return 1 2>/dev/null || exit 1
+}
+
+
 # ── Rust setup ──────────────────────────────────────────────────
 
 setup_rust() {

@@ -91,6 +91,9 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
+          export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
+          cargo --version
+
 
           chmod +x ./setup.sh
           source ./setup.sh
