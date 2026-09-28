@@ -3,6 +3,7 @@ name: Test setup
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -33,8 +34,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # Needed only because setup.sh requires an MSYS2 MINGW64 environment
-      # on native Windows.
+      # setup.sh requires the native MSYS2 MINGW64 environment on Windows.
       - name: Set up MSYS2
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
@@ -45,13 +45,16 @@ jobs:
           cache: true
           suppress-deprecation-warnings: msystem-mingw64
 
-      # macOS and Linux
+          # Avoid collisions with the default runner-temp msys64 location.
+          location: ${{ runner.temp }}\msys64-ribologic
+
+      # On macOS/Linux, run each stage separately for clearer CI output.
       - name: Run setup
         if: runner.os != 'Windows'
         shell: bash
         run: |
           chmod +x ./setup.sh
-          ./setup.sh
+          source ./setup.sh
 
       - name: Run tests
         if: runner.os != 'Windows'
@@ -63,25 +66,14 @@ jobs:
         shell: bash
         run: cargo build --locked --target "${{ matrix.target }}"
 
-      # Windows — must run inside the MSYS2 MINGW64 shell.
-      - name: Set up MSYS2
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          path-type: minimal
-          cache: true
-          suppress-deprecation-warnings: msystem-mingw64
-
+      # Keep Windows in one MSYS2 process. This preserves PATH changes made
+      # by setup.sh, including Cargo's Windows install directory.
       - name: Setup, test, and build
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          export PATH="$(cygpath -u "$USERPROFILE")/.cargo/bin:$PATH"
-
           chmod +x ./setup.sh
-          ./setup.sh
+          source ./setup.sh
 
           cargo test --locked --target "${{ matrix.target }}"
           cargo build --locked --target "${{ matrix.target }}"
