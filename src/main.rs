@@ -450,8 +450,9 @@ fn mutate_seq(seq_in: &str, structure: &str, wobble_frequency: f64, last_global 
     let paired_nucleotides: &[char] = if GC_TEST || last_global{ // Change here if you want a higher or lower GC-content
             &['G', 'C']
         } else {
-            //&['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C'] 
-            &['A', 'U', 'G', 'C']
+            //&['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
+            &['G', 'C'] 
+            //&['A', 'U', 'G', 'C']
             //&['A', 'U']
         };
 
@@ -1570,7 +1571,7 @@ pub fn decomposed_hill_climb_design(
             
             let final_repair_max_steps: i64 =
                 ((final_check_result.bp_distance as f64 / 0.008).round() as i64)
-                    .clamp(1, 50);
+                    .clamp(1, 100);
 
             println!(
                 "attempting final focused global repair via multi_start_hill_climb_design, \
@@ -1614,6 +1615,74 @@ pub fn decomposed_hill_climb_design(
         full_seq
     };
 
+    let final_check_result = bp_distance_to_target(&full_seq, target);
+
+    let full_seq = if final_check_result.bp_distance > 0 {
+        let remaining_mismatches: Vec<usize> = if RIBOSOMAL_RNA {
+            identify_mismatches(&final_check_result.structure, target)
+                .into_iter()
+                .filter(|&g| ribo_set.contains(&g))
+                .collect()
+        } else {
+            identify_mismatches(&final_check_result.structure, target)
+        };
+
+        if remaining_mismatches.is_empty() {
+            full_seq
+        } else {
+            
+            let final_repair_max_steps: i64 =
+                ((final_check_result.bp_distance as f64 / 0.008).round() as i64)
+                    .clamp(1, 100);
+
+            println!(
+                "attempting a second final focused global repair via multi_start_hill_climb_design, \
+                 bp_distance={}, {} remaining mismatched positions, max_steps={}",
+                final_check_result.bp_distance,
+                remaining_mismatches.len(),
+                final_repair_max_steps
+            );
+
+            let if_slices = false;
+
+            let final_repair_pool = multi_start_hill_climb_design(
+                &full_seq,
+                target,
+                remaining_mismatches,
+                n_starts,
+                final_repair_max_steps,
+                wobble_frequency,
+                if_slices,
+                true,
+            );
+
+            match final_repair_pool.into_iter().min_by_key(|r| r.bp_distance) {
+                Some(repaired) if repaired.bp_distance < final_check_result.bp_distance => {
+                    println!(
+                        "the second final focused global repair improved: {} -> {}",
+                        final_check_result.bp_distance,
+                        repaired.bp_distance
+                    );
+                    repaired.sequence
+                }
+                _ => {
+                    println!(
+                        "the second final focused global repair made no improvement, keeping current sequence"
+                    );
+                    full_seq
+                }
+            }
+        }
+    } else {
+        full_seq
+    };
+
+    let full_seq = if RIBOSOMAL_RNA || GC_TEST {
+        println!("Skipping GC cleanup");
+        full_seq
+    } else {
+        gc_cleanup(&full_seq, start_seq, target)
+    };
 
     let result = bp_distance_to_target(&full_seq, target);
 
@@ -2648,3 +2717,101 @@ fn show_in_pager(output: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn gc_cleanup(
+    seq_in: &str,
+    original_annotation: &str,
+    target: &str,
+) -> String {
+    assert_eq!(seq_in.len(), original_annotation.len());
+    assert_eq!(seq_in.len(), target.len());
+
+    let pair_map = get_pair_map(target);
+    let annotation = original_annotation.as_bytes();
+    let mut seq: Vec<u8> = seq_in.as_bytes().to_vec();
+
+    let mut current = String::from_utf8(seq.clone()).expect("sequence must be valid UTF-8");
+    let mut current_result = bp_distance_to_target(&current, target);
+    let mut current_dist = current_result.bp_distance;
+
+    let mut total_replacements = 0usize;
+    let mut changed = true;
+
+    while changed {
+        changed = false;
+
+        
+        let mut pairs: Vec<(usize, usize)> = pair_map
+            .iter()
+            .filter_map(|(&i, &j)| (i < j).then_some((i, j)))
+            .collect();
+
+        pairs.sort_unstable();
+        pairs.dedup();
+
+        for (i, j) in pairs {
+            
+            if annotation[i] != b'N' || annotation[j] != b'N' {
+                continue;
+            }
+
+            
+            let is_gc_pair = matches!(
+                (seq[i], seq[j]),
+                (b'G', b'C') | (b'C', b'G')
+            );
+
+            if !is_gc_pair {
+                continue;
+            }
+
+            
+            let mut best_trial: Option<(Vec<u8>, DesignResult)> = None;
+
+            for (left, right) in [(b'A', b'U'), (b'U', b'A')] {
+                let mut trial = seq.clone();
+                trial[i] = left;
+                trial[j] = right;
+
+                let trial_string =
+                    String::from_utf8(trial.clone()).expect("sequence must be valid UTF-8");
+                let trial_result = bp_distance_to_target(&trial_string, target);
+
+                
+                if trial_result.bp_distance > current_dist {
+                    continue;
+                }
+
+                let replace_best = match &best_trial {
+                    None => true,
+                    Some((_, best_result)) => {
+                        trial_result.bp_distance < best_result.bp_distance
+                            || (trial_result.bp_distance == best_result.bp_distance
+                                && trial_result.mfe < best_result.mfe)
+                    }
+                };
+
+                if replace_best {
+                    best_trial = Some((trial, trial_result));
+                }
+            }
+
+            if let Some((trial, trial_result)) = best_trial {
+                seq = trial;
+                current_dist = trial_result.bp_distance;
+                current_result = trial_result;
+                changed = true;
+                total_replacements += 1;
+            }
+        }
+    }
+
+    current = String::from_utf8(seq).expect("sequence must be valid UTF-8");
+
+    println!(
+        "GC cleanup complete: {} GC pair(s) converted; final bp_distance={}",
+        total_replacements,
+        current_result.bp_distance
+    );
+
+    current
+}
