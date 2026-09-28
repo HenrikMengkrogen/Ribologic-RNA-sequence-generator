@@ -1,0 +1,88 @@
+name: Test setup on all platforms
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-setup:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Intel macOS
+          - name: macOS Intel
+            os: macos-13
+            target: x86_64-apple-darwin
+
+          # Apple Silicon macOS
+          - name: macOS Apple Silicon
+            os: macos-14
+            target: aarch64-apple-darwin
+
+          # x86_64 Linux
+          - name: Linux x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+
+          # ARM64 Linux
+          #
+          # GitHub's ARM runners may require a public repository or an
+          # appropriate GitHub plan.
+          - name: Linux ARM64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+
+          # Native Windows through MSYS2 MinGW64
+          - name: Windows x86_64 MinGW
+            os: windows-latest
+            target: x86_64-pc-windows-gnu
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Windows requires MSYS2 because setup.sh intentionally requires
+      # the MSYS2 MinGW64 environment for native Windows builds.
+      #
+      # No project dependencies are installed here; setup.sh does that.
+      - name: Set up MSYS2 shell
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          path-type: minimal
+          suppress-deprecation-warnings: msystem-mingw64
+
+      # macOS and Linux:
+      # setup.sh installs Rust and native dependencies, stages/builds
+      # ViennaRNA, then test/build verify the resulting installation.
+      - name: Setup, test, and build
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x ./setup.sh
+          ./setup.sh
+
+          cargo test --locked --target "${{ matrix.target }}"
+          cargo build --locked --target "${{ matrix.target }}"
+
+      # Windows must use MSYS2's MINGW64 shell.
+      #
+      # Keep all commands in one step so the PATH exported by setup.sh
+      # is definitely available to cargo test and cargo build.
+      - name: Setup, test, and build
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          chmod +x ./setup.sh
+          ./setup.sh
+
+          cargo test --locked --target "${{ matrix.target }}"
+          cargo build --locked --target "${{ matrix.target }}"
+
