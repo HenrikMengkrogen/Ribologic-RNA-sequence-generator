@@ -124,12 +124,30 @@ fn main() {
 
     match target_os.as_str() {
         "macos" => {
+            // libRNA.a includes C++ objects from libsvm.
+            println!("cargo:rustc-link-lib=c++");
+
             println!("cargo:rustc-link-lib=framework=CoreFoundation");
             println!("cargo:rustc-link-lib=iconv");
             println!("cargo:rustc-link-lib=z");
+
+            /*
+            * Add this only if your macOS libRNA.a was built with OpenMP:
+            *
+            * println!("cargo:rustc-link-lib=omp");
+            *
+            * Note: libomp is not normally included with macOS itself; it is
+            * commonly installed through Homebrew (`brew install libomp`).
+            */
         }
 
         "linux" => {
+            // Required by OpenMP references in libRNA.a, e.g. omp_set_dynamic.
+            println!("cargo:rustc-link-lib=gomp");
+
+            // Required by C++ libsvm objects embedded in libRNA.a.
+            println!("cargo:rustc-link-lib=stdc++");
+
             println!("cargo:rustc-link-lib=m");
             println!("cargo:rustc-link-lib=pthread");
             println!("cargo:rustc-link-lib=dl");
@@ -137,15 +155,11 @@ fn main() {
         }
 
         "windows" => {
-            // MinGW/gnu target: same static-archive (.a) linking as macOS/Linux,
-            // not MSVC .lib files, since TARGET is x86_64-pc-windows-gnu.
-            //
-            // libRNA.a references Winsock and multimedia-timer symbols
-            // (closesocket, WSAGetLastError, timeGetTime, ...) that aren't
-            // pulled in by Rust's default -pc-windows-gnu link set, so they
-            // must be linked explicitly. Order matters: these resolve
-            // symbols from libRNA.a above, so they must come after it,
-            // which they do since this match runs after that loop.
+            // If this prebuilt GNU/MinGW archive also contains libsvm and
+            // OpenMP code, these need to be available in the MinGW toolchain.
+            println!("cargo:rustc-link-lib=stdc++");
+            println!("cargo:rustc-link-lib=gomp");
+
             println!("cargo:rustc-link-lib=ws2_32");
             println!("cargo:rustc-link-lib=winmm");
         }
