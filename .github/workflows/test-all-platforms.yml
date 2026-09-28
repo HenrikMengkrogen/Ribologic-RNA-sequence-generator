@@ -50,62 +50,38 @@ jobs:
           cargo build --locked --target "${{ matrix.target }}"
 
   windows-gnu:
-    name: Windows x86_64 GNU
-    runs-on: windows-latest
+  name: Windows x86_64 GNU
+  runs-on: windows-latest
 
-    defaults:
-      run:
-        shell: msys2 {0}
+  defaults:
+    run:
+      shell: msys2 {0}
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+  steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
 
-      # This installs MSYS2 itself. setup.sh installs all actual project
-      # dependencies with pacman and builds/stages ViennaRNA.
-      - name: Set up MSYS2 shell
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          path-type: minimal
-          cache: true
-          location: ${{ runner.temp }}\ribosome-msys64
-          suppress-deprecation-warnings: msystem-mingw64
+    - name: Set up MSYS2 shell
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        path-type: minimal
+        cache: true
+        location: ${{ runner.temp }}\ribosome-msys64
+        suppress-deprecation-warnings: msystem-mingw64
 
-      # Do not source this script here. setup.sh writes Cargo's directory to
-      # GITHUB_PATH, which GitHub applies to subsequent workflow steps.
-      - name: Set up Windows dependencies
-        run: |
-          set -euo pipefail
+    - name: Setup, test, and build Windows GNU
+      run: |
+        set -euo pipefail
 
-          chmod +x ./setup.sh
-          ./setup.sh
+        chmod +x ./setup.sh
+        source ./setup.sh
 
-      # This verifies that setup.sh successfully persisted Cargo's directory
-      # through GITHUB_PATH.
-      - name: Verify Rust and toolchain
-        run: |
-          set -euo pipefail
+        echo "Cargo after setup: $(command -v cargo)"
+        cargo --version
+        rustc --version
 
-          echo "PATH=$PATH"
+        cargo test --locked --target x86_64-pc-windows-gnu
+        cargo build --locked --target x86_64-pc-windows-gnu
 
-          command -v cargo
-          command -v rustc
-          command -v gcc
-          command -v clang
-
-          cargo --version
-          rustc --version
-
-      - name: Run Windows GNU tests
-        run: |
-          set -euo pipefail
-
-          cargo test --locked --target x86_64-pc-windows-gnu
-
-      - name: Build Windows GNU binary
-        run: |
-          set -euo pipefail
-
-          cargo build --locked --target x86_64-pc-windows-gnu
