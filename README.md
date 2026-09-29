@@ -1,11 +1,17 @@
----
-output:
-  pdf_document: default
-  html_document: default
-editor_options: 
-  markdown: 
-    wrap: 72
----
+## Experimental pre-release
+
+This release introduces parallel focused repair based on the complete
+candidate pool from the preceding multi-start repair stage.
+
+### Main changes
+- Preserves candidates produced by the first focused repair.
+- Runs the next focused repair from each retained candidate in parallel.
+- Improves scoring and avoids unnecessary partition-function calculations.
+- Adds stagnation handling for difficult repair trajectories.
+
+This is a pre-release intended for testing. The previous stable release
+remains the recommended version for normal use.
+
 
 # Ribologic RNA Sequence Generator
 
