@@ -439,86 +439,142 @@ fn pk_pair_mismatches(seq: &str, pair_map: &HashMap<usize, usize>, target: &str)
     mismatches
 }
 
-fn mutate_seq(seq_in: &str, structure: &str, wobble_frequency: f64, last_global : bool) -> String {
+fn mutate_seq(
+    seq_in: &str,
+    structure: &str,
+    n_positions: &[usize],
+    wobble_frequency: f64,
+    last_global: bool,
+) -> String {
+    use std::collections::HashSet;
+
     let mut rng = rand::rng();
 
     let pair_map = get_pair_map(structure);
 
-    let mut comp_dict = HashMap::new();
-    comp_dict.insert('A', 'U');
-    comp_dict.insert('U', 'A');
-    comp_dict.insert('G', 'C');
-    comp_dict.insert('C', 'G');
+    let comp_dict = HashMap::from([
+        ('A', 'U'),
+        ('U', 'A'),
+        ('G', 'C'),
+        ('C', 'G'),
+    ]);
 
-    let hard_loops: bool = find_hard_loops(structure);
+    let hard_loops = find_hard_loops(structure);
 
-    let _nucleotides = ['A', 'U', 'G', 'C'];
+    let paired_nucleotides: &[char] = if GC_TEST || last_global {
+        &['G', 'C']
+    } else {
+        &['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
+    };
 
-    let paired_nucleotides: &[char] = if GC_TEST || last_global{ // Change here if you want a higher or lower GC-content
-            &['G', 'C']
-        } else {
-            &['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
-            //&['G', 'C'] 
-            //&['A', 'U', 'G', 'C']
-            //&['A', 'U']
-        };
-
-    
-    
-
-    
-
-    //let paired_nucleotides = ['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C'];
-
-    //let purines = ['A', 'G', 'U'];
-
-    let purines: &[char] = if GC_TEST{
-            &['G', 'C']
-        } else {
-            //&['A', 'G', 'U']
-            &['A', 'U']
-        };
-
-    
+    let purines: &[char] = if GC_TEST {
+        &['G', 'C']
+    } else {
+        &['A', 'U']
+    };
 
     let mut mut_seq: Vec<char> = seq_in.chars().collect();
     let mut_struct: Vec<char> = structure.chars().collect();
 
-    for i in 0..mut_seq.len() {
-        if mut_seq[i] != 'N' && mut_seq[i] != 'K' && mut_seq[i] != 'S' {
+    
+    let mutable_positions: HashSet<usize> =
+        n_positions.iter().copied().collect();
+
+    
+    let mut processed_pairs: HashSet<(usize, usize)> = HashSet::new();
+
+    for &i in n_positions {
+        if i >= mut_seq.len() {
             continue;
         }
 
         if let Some(&j) = pair_map.get(&i) {
-            if mut_seq[j] != 'N' {
-                mut_seq[i] = *comp_dict.get(&mut_seq[j]).unwrap();
-            } else if mut_seq[i] == 'K' {
-                let choice = if rng.random::<f64>() < 0.5 { 'G' } else { 'U' };
+            if j >= mut_seq.len() {
+                continue;
+            }
+
+            let pair_key = (i.min(j), i.max(j));
+
+            
+            if !mutable_positions.contains(&j) {
+                let fixed_partner = mut_seq[j];
+
+                if let Some(&complement) = comp_dict.get(&fixed_partner) {
+                    mut_seq[i] = complement;
+                } else {
+                    eprintln!(
+                        "mutate_seq: position {j} is fixed but has invalid base '{fixed_partner}'"
+                    );
+                }
+
+                continue;
+            }
+
+            
+            if processed_pairs.contains(&pair_key) {
+                continue;
+            }
+
+            processed_pairs.insert(pair_key);
+
+            
+            let original_i = mut_seq[i];
+
+            if original_i == 'K' {
+                let choice = if rng.random::<f64>() < 0.5 {
+                    'G'
+                } else {
+                    'U'
+                };
+
                 mut_seq[i] = choice;
 
                 if rng.random::<f64>() < wobble_frequency && choice == 'G' {
                     mut_seq[j] = 'U';
                 } else {
-                    mut_seq[j] = *comp_dict.get(&choice).unwrap();
+                    mut_seq[j] = comp_dict[&choice];
                 }
-            } else if mut_seq[i] == 'S' {
-                let choice = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
+            } else if original_i == 'S' {
+                let choice = if rng.random::<f64>() < 0.5 {
+                    'G'
+                } else {
+                    'C'
+                };
+
                 mut_seq[i] = choice;
-                mut_seq[j] = *comp_dict.get(&choice).unwrap();
-            } else if hard_loops && mut_struct[i] == '(' && mut_struct[i + 1] == ')' {
-                let choice = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
+                mut_seq[j] = comp_dict[&choice];
+            } else if hard_loops
+                && i + 1 < mut_struct.len()
+                && mut_struct[i] == '('
+                && mut_struct[i + 1] == ')'
+            {
+                
+                let choice = if rng.random::<f64>() < 0.5 {
+                    'G'
+                } else {
+                    'C'
+                };
+
                 mut_seq[i] = choice;
-                mut_seq[i + 1] = *comp_dict.get(&choice).unwrap();
+                mut_seq[j] = comp_dict[&choice];
+
                 println!("HARD LOOP WARNING -> GC-PAIR!");
+
+                
                 if i + 2 < j {
                     if let Some(&partner_of_next) = pair_map.get(&(i + 2)) {
                         if partner_of_next == j - 2
-                            && mut_seq[i + 1] == 'N'
-                            && mut_seq[j - 1] == 'N'
+                            && mutable_positions.contains(&(i + 2))
+                            && mutable_positions.contains(&(j - 2))
                         {
-                            let choice2 = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
+                            let choice2 = if rng.random::<f64>() < 0.5 {
+                                'G'
+                            } else {
+                                'C'
+                            };
+
                             mut_seq[i + 2] = choice2;
-                            mut_seq[j - 2] = *comp_dict.get(&choice2).unwrap();
+                            mut_seq[j - 2] = comp_dict[&choice2];
                         }
                     }
                 }
@@ -526,66 +582,94 @@ fn mutate_seq(seq_in: &str, structure: &str, wobble_frequency: f64, last_global 
                 if i + 3 < j {
                     if let Some(&partner_of_next) = pair_map.get(&(i + 3)) {
                         if partner_of_next == j - 3
-                            && mut_seq[i + 2] == 'N'
-                            && mut_seq[j - 2] == 'N'
+                            && mutable_positions.contains(&(i + 3))
+                            && mutable_positions.contains(&(j - 3))
                         {
-                            let choice3 = if rng.random::<f64>() < 0.5 { 'G' } else { 'U' };
+                            let choice3 = if rng.random::<f64>() < 0.5 {
+                                'G'
+                            } else {
+                                'U'
+                            };
+
                             mut_seq[i + 3] = choice3;
-                            mut_seq[j - 3] = *comp_dict.get(&choice3).unwrap();
+                            mut_seq[j - 3] = comp_dict[&choice3];
                         }
                     }
                 }
             } else {
                 let near_loop =
-                    is_adjacent_to_loop(i, structure) || is_adjacent_to_loop(j, structure);
+                    is_adjacent_to_loop(i, structure)
+                    || is_adjacent_to_loop(j, structure);
 
                 if near_loop {
-                    let choice = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
+                    let choice = if rng.random::<f64>() < 0.5 {
+                        'G'
+                    } else {
+                        'C'
+                    };
+
                     mut_seq[i] = choice;
-                    mut_seq[j] = *comp_dict.get(&choice).unwrap();
+                    mut_seq[j] = comp_dict[&choice];
 
                     if i + 1 < j {
                         if let Some(&partner_of_next) = pair_map.get(&(i + 1)) {
                             if partner_of_next == j - 1
-                                && mut_seq[i + 1] == 'N'
-                                && mut_seq[j - 1] == 'N'
+                                && mutable_positions.contains(&(i + 1))
+                                && mutable_positions.contains(&(j - 1))
                             {
-                                let choice2 = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
+                                let choice2 = if rng.random::<f64>() < 0.5 {
+                                    'G'
+                                } else {
+                                    'C'
+                                };
+
                                 mut_seq[i + 1] = choice2;
-                                mut_seq[j - 1] = *comp_dict.get(&choice2).unwrap();
+                                mut_seq[j - 1] = comp_dict[&choice2];
                             }
                         }
                     }
+
                     if i + 2 < j {
                         if let Some(&partner_of_next) = pair_map.get(&(i + 2)) {
                             if partner_of_next == j - 2
-                                && mut_seq[i + 1] == 'N'
-                                && mut_seq[j - 1] == 'N'
+                                && mutable_positions.contains(&(i + 2))
+                                && mutable_positions.contains(&(j - 2))
                             {
-                                let choice2 = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
+                                let choice2 = if rng.random::<f64>() < 0.5 {
+                                    'G'
+                                } else {
+                                    'C'
+                                };
+
                                 mut_seq[i + 2] = choice2;
-                                mut_seq[j - 2] = *comp_dict.get(&choice2).unwrap();
+                                mut_seq[j - 2] = comp_dict[&choice2];
                             }
                         }
                     }
                 } else {
-                    let choice = paired_nucleotides[rng.random_range(0..paired_nucleotides.len())];
+                    let choice = paired_nucleotides[
+                        rng.random_range(0..paired_nucleotides.len())
+                    ];
+
                     mut_seq[i] = choice;
 
                     if rng.random::<f64>() < wobble_frequency && choice == 'G' {
                         mut_seq[j] = 'U';
                     } else {
-                        mut_seq[j] = *comp_dict.get(&choice).unwrap();
+                        mut_seq[j] = comp_dict[&choice];
                     }
                 }
             }
         } else {
-            mut_seq[i] = purines[rng.random_range(0..purines.len())]; // Hopefully only mutates long unpaired stretches into A's and G's
+            
+            mut_seq[i] = purines[rng.random_range(0..purines.len())];
         }
     }
 
     mut_seq.into_iter().collect()
 }
+
+
 
 struct RibosomeSimilarity {
     matches: usize,
@@ -611,6 +695,16 @@ pub struct Substructure {
     pub structure: String,
     pub designable: Vec<usize>,
 }
+
+#[derive(Clone, Debug)]
+struct CandidateScore {
+    structure: String,
+    mfe: f64,
+    total_distance: i64,
+    energy_gap: f64,
+}
+
+
 
 pub struct FoldResult {
     pub bp_distance: i64,
@@ -731,9 +825,13 @@ fn hill_climb_design(
     let slice_len = target_structure.len();
     let n_designable = n_positions.len();
 
-    let designable_positions: HashSet<usize> =
+    let mut n_positions = n_positions;
+    let original_designable_positions: HashSet<usize> =
+      n_positions.iter().copied().collect();
+
+    let mut designable_positions: HashSet<usize> =
         n_positions.iter().copied().collect();
-        
+            
     let n_fixed = slice_len.saturating_sub(n_designable);
     let fixed_fraction = n_fixed as f64 / slice_len.max(1) as f64;
 
@@ -745,15 +843,15 @@ fn hill_climb_design(
         0
     } 
     else {
-        ((n_fixed as f64) / 12.0).ceil() as i64
+        0
     };
 
     let hard_loops = find_hard_loops(&target_structure);
 
     let dist_threshold = if hard_loops {
-        dist_threshold.max(1) + 2
+        dist_threshold.max(0) + 2
     } else {
-        dist_threshold.max(1)
+        dist_threshold.max(0)
     };
 
     let p_threshold: f64 = if fixed_fraction > 0.6 && !last_global {
@@ -792,7 +890,7 @@ fn hill_climb_design(
     let mut current = if RIBOSOMAL_RNA {
         mutate_ribosome(seq_in, target_structure, &n_positions)
     } else {
-        mutate_seq(seq_in, target_structure, wobble_frequency, last_global)
+        mutate_seq(seq_in, target_structure, &n_positions, wobble_frequency, last_global)
     };
 
     //let mut current = mutate_seq(seq_in, target_structure, wobble_frequency);
@@ -844,27 +942,32 @@ fn hill_climb_design(
         if is_weak {
             current_chars[pos] = 'G';
             current_chars[partner] = 'C';
-            println!(
-                "  Option B: forcing GC at ({}, {}) — outer pair {}{} is weak",
-                pos, partner, outer_5_nuc, outer_3_nuc
-            );
+            const VERBOSE: bool = false;
+
+            if VERBOSE {
+                println!(
+                    "  Option B: forcing GC at ({}, {}) — outer pair {}{} is weak",
+                    pos,
+                    partner,
+                    outer_5_nuc,
+                    outer_3_nuc,
+                );
+            }
         }
     }
     current = current_chars.into_iter().collect();
 
-    let init_result = bp_distance_to_target(&current, target_structure);
+    let initial_score = score_candidate(
+    &current,
+    target_structure,
+    &pair_map,
+    );
 
-    let initial_pk_mismatches =
-        pk_pair_mismatches(&current, &pair_map, target_structure);
+    let mut current_dist = initial_score.total_distance;
+    let mut current_structure = initial_score.structure;
+    let mut current_mfe = initial_score.mfe;
+    let mut current_energy_gap = initial_score.energy_gap;
 
-    let mut current_dist =
-        init_result.bp_distance + 2 * initial_pk_mismatches as i64;
-
-    let mut current_structure = init_result.structure.clone();
-    let mut current_mfe = init_result.mfe;
-
-    let mut current_energy_gap =
-        (energy_of_target_structure(&current, target_structure) - init_result.mfe).max(0.0);
 
     let mut best_candidates = vec![(
         current_dist,
@@ -884,7 +987,7 @@ fn hill_climb_design(
 
     // ##################
     
-
+    
     for step in 0..max_steps {
         if best_candidates[0].0 == 0 && best_candidates.len() >= n_keep {
             break;
@@ -899,62 +1002,7 @@ fn hill_climb_design(
         let mismatched =
             find_mismatched_positions(&current_structure, target_structure, &n_positions);
 
-        // === THIS IS JUST A TEST CODE. IF THIS NOT WORK GO BACK TO THE OLD WAY =======
-        if current_dist > 0 && mismatched.is_empty() && step > 20 {
-            let target_no_pk = strip_pseudoknots(target_structure);
-            let target_bytes = target_no_pk.as_bytes();
-            let current_bytes = current_structure.as_bytes();
-
-            // Indices of *all* mismatches in this slice (local coords)
-            let mut all_mismatches = Vec::new();
-            for i in 0..current_bytes.len() {
-                if current_bytes[i] != target_bytes[i] {
-                    all_mismatches.push(i);
-                }
-            }
-            
-            // Fixed mismatched positions = mismatches not in n_positions
-            use std::collections::HashSet;
-            let designable_set: HashSet<usize> = n_positions.iter().copied().collect();
-            let fixed_mismatches: Vec<usize> = all_mismatches
-                .into_iter()
-                .filter(|i| !designable_set.contains(i))
-                .collect();
-
-            if !fixed_mismatches.is_empty() {
-                let (_cost, defects, _mfe, _e_target) =
-                    compute_pf_defect(&current, target_structure);
-
-                let mut max_p_paired = 0.0;
-                for &i in &fixed_mismatches {
-                    let p_paired = 1.0 - defects[i];
-                    if p_paired > max_p_paired {
-                        max_p_paired = p_paired;
-                    }
-                }
-
-                //let p_threshold = 0.55;
-                //let dist_threshold = 3;
-
-                if current_dist <= dist_threshold && max_p_paired < p_threshold {
-                    println!(
-                        "  early exit: dist={} but remaining mismatches are weakly paired (max p≈{:.2})",
-                        current_dist, max_p_paired
-                    );
-                    break;
-                }
-
-                if current_dist <= dist_threshold && if_slices {
-                    break;
-                };
-            }
-
-            println!(
-                "  early exit: all mismatches at fixed positions, dist={current_dist} (no PF exception)"
-            );
-            break;
-        }
-        // ========= END OF TEST BLOCK ================
+        
 
         let stuck = step - last_improvement_step > 100;
         let use_double = stuck && current_dist <= 2;
@@ -1203,14 +1251,15 @@ fn hill_climb_design(
 
         let candidate_string: String = candidate.into_iter().collect();
 
+        let candidate_score = score_candidate(
+            &candidate_string,
+            target_structure,
+            &pair_map,
+        );
 
-        
-        let guard_result = bp_distance_to_target(&candidate_string, target_structure);
-        let cand_pk_mismatches = pk_pair_mismatches(&candidate_string, &pair_map, target_structure);
-        let cand_dist = guard_result.bp_distance + 2 * cand_pk_mismatches as i64;
-        let cand_energy_gap = (energy_of_target_structure(&candidate_string, target_structure)
-            - guard_result.mfe)
-            .max(0.0);
+        let cand_dist = candidate_score.total_distance;
+        let cand_energy_gap = candidate_score.energy_gap;
+
 
         let accept = if cand_dist < current_dist {
             true
@@ -1226,65 +1275,58 @@ fn hill_climb_design(
         temperature_for_testing.push(temp);
         current_dist_for_testing.push(current_dist);
 
-        let current_bytes = current_structure.as_bytes();
-        let mut all_mismatches = Vec::new();
-        for i in 0..current_bytes.len() {
-            if current_bytes[i] != target_bytes[i] {
-                all_mismatches.push(i);
-            }
-        }
+        
 
-        use std::collections::HashSet;
-        let designable_set: HashSet<usize> = n_positions.iter().copied().collect();
-        let fixed_mismatches: Vec<usize> = all_mismatches
-            .into_iter()
-            .filter(|i| !designable_set.contains(i))
-            .collect();
+        if cand_dist <= dist_threshold && step % 20 == 0 {
+            let current_bytes = current_structure.as_bytes();
 
-        if !fixed_mismatches.is_empty() {
-            let (_cost, defects, _mfe, _e_target) = compute_pf_defect(&current, target_structure);
+            let fixed_mismatches: Vec<usize> = (0..current_bytes.len())
+                .filter(|&i| {
+                    current_bytes[i] != target_bytes[i]
+                        && !original_designable_positions.contains(&i)
+                })
+                .collect();
 
-            let mut max_p_paired = 0.0;
-            for &i in &fixed_mismatches {
-                let p_paired = 1.0 - defects[i];
-                if p_paired > max_p_paired {
-                    max_p_paired = p_paired;
-                }
-            }
+            let max_p_paired = if fixed_mismatches.is_empty() {
+                1.0
+            } else {
+                let (_cost, defects, _mfe, _e_target) =
+                    compute_pf_defect(&current, target_structure);
 
-            //let p_threshold = 0.55;
-            //let dist_threshold = 3;
+                fixed_mismatches
+                    .iter()
+                    .map(|&i| 1.0 - defects[i])
+                    .fold(0.0, f64::max)
+            };
 
-            if cand_dist <= dist_threshold && max_p_paired < p_threshold {
+            if max_p_paired < p_threshold {
                 println!(
-                    "  early exit: dist={} but remaining mismatches are weakly paired (max p≈{:.2})",
-                    cand_dist, max_p_paired
+                    "  early exit: dist={} but remaining mismatches are weakly paired \
+                    (max p≈{:.2})",
+                    cand_dist,
+                    max_p_paired,
                 );
+                break;
+            }
+
+            if if_slices {
+                println!("Early exit for slices at dist={cand_dist}");
                 break;
             }
         }
 
-        if cand_dist <= dist_threshold && if_slices {
-            println!(
-                "Early exit for slices at dist={}: Remaining positions will be solved globally",
-                cand_dist
-            );
-            break;
-        };
 
-        // End of break block
 
+            
         if accept {
             let improved = cand_dist < current_dist;
+
             current = candidate_string.clone();
-            current_dist = cand_dist;
+            current_dist = candidate_score.total_distance;
+            current_energy_gap = candidate_score.energy_gap;
+            current_structure = candidate_score.structure.clone();
+            current_mfe = candidate_score.mfe;
 
-            current_energy_gap = (energy_of_target_structure(&candidate_string, target_structure)
-                - guard_result.mfe)
-                .max(0.0);
-
-            current_structure = guard_result.structure.clone();
-            current_mfe = guard_result.mfe;
 
             if improved {
                 last_improvement_step = step;
@@ -1301,6 +1343,86 @@ fn hill_climb_design(
                 best_candidates.sort_by(|a, b| a.0.cmp(&b.0));
                 best_candidates.truncate(n_keep);
             }
+        }
+
+        const MIN_ACTIVE_POSITIONS: usize = 8;
+
+        if step > 0 && step % 20 == 0 && current_dist > 0 {
+            let old_n_positions = n_positions.clone();
+
+            let reduced_positions = reduce_positions_by_mismatch_proximity(
+                &current_structure,
+                target_structure,
+                &old_n_positions,
+                MIN_ACTIVE_POSITIONS,
+            );
+
+            if reduced_positions.len() < old_n_positions.len() {
+                
+
+                n_positions = reduced_positions;
+                designable_positions = n_positions.iter().copied().collect();
+
+                let reseeded = mutate_seq(
+                    &current,
+                    target_structure,
+                    &n_positions,
+                    wobble_frequency,
+                    true,
+                );
+
+                let reseed_score = score_candidate(
+                    &reseeded,
+                    target_structure,
+                    &pair_map,
+                );
+
+                let reseed_dist = reseed_score.total_distance;
+                let reseed_energy_gap = reseed_score.energy_gap;
+
+
+                if reseed_dist < current_dist
+                    || (reseed_dist == current_dist
+                        && reseed_energy_gap < current_energy_gap)
+                {
+                    current = reseeded;
+                    current_dist = reseed_score.total_distance;
+                    current_structure = reseed_score.structure;
+                    current_mfe = reseed_score.mfe;
+                    current_energy_gap = reseed_score.energy_gap;
+                    last_improvement_step = step;
+
+                    let already_present = best_candidates
+                        .iter()
+                        .any(|(_, sequence, _, _)| sequence == &current);
+
+                    if !already_present {
+                        best_candidates.push((
+                            current_dist,
+                            current.clone(),
+                            current_structure.clone(),
+                            current_mfe,
+                        ));
+
+                        best_candidates.sort_by(|a, b| a.0.cmp(&b.0));
+                        best_candidates.truncate(n_keep);
+                    }
+                }
+
+            } 
+        }
+
+
+        const STAGNATION_LIMIT: i64 = 500;
+
+        
+        if step - last_improvement_step >= STAGNATION_LIMIT {
+            println!(
+                "  stopping stagnant restart at step {step}: \
+                dist={current_dist}, best_dist={}",
+                best_candidates[0].0,
+            );
+            break;
         }
 
         temp *= cooling_rate;
@@ -1529,8 +1651,8 @@ pub fn decomposed_hill_climb_design(
             .min_by_key(|r| r.bp_distance)
             .ok_or_else(|| format!("slice {} returned empty pool", idx))?;
 
-        const MAX_REFINE_ROUNDS: usize = 3;
-        const MAX_STALLED_ROUNDS: usize = 2;
+        const MAX_REFINE_ROUNDS: usize = 25;
+        const MAX_STALLED_ROUNDS: usize = 5;
         let mut stalled = 0;
 
         for round in 1..=MAX_REFINE_ROUNDS {
@@ -1556,10 +1678,10 @@ pub fn decomposed_hill_climb_design(
                 &sub.structure,
                 remaining,
                 n_starts,
-                25,
+                50,
                 wobble_frequency,
-                false,
-                false,
+                true,
+                true,
             )
             .into_iter()
             .min_by_key(|r| r.bp_distance)
@@ -1674,10 +1796,10 @@ pub fn decomposed_hill_climb_design(
         );
 
         let repair_max_steps: i64 =
-            if ((pre_repair_result.bp_distance as f64 / 0.008).round() as i64) < 150 {
+            if ((pre_repair_result.bp_distance as f64 / 0.008).round() as i64) < 100 {
                 (pre_repair_result.bp_distance as f64 / 0.008).round() as i64
             } else {
-                150
+                100
             };
         println!(
             "Max number of iterations for global repair: {}",
@@ -1716,7 +1838,7 @@ pub fn decomposed_hill_climb_design(
 
     
     let final_check_result = bp_distance_to_target(&full_seq, target);
-
+    let mut first_focused_repair_pool: Vec<DesignResult> = Vec::new();
     let full_seq = if final_check_result.bp_distance > 0 {
         let remaining_mismatches: Vec<usize> = if RIBOSOMAL_RNA {
             identify_mismatches(&final_check_result.structure, target)
@@ -1745,7 +1867,7 @@ pub fn decomposed_hill_climb_design(
 
             let if_slices = false;
 
-            let final_repair_pool = multi_start_hill_climb_design(
+            first_focused_repair_pool = multi_start_hill_climb_design(
                 &full_seq,
                 target,
                 remaining_mismatches,
@@ -1756,14 +1878,18 @@ pub fn decomposed_hill_climb_design(
                 true,
             );
 
-            match final_repair_pool.into_iter().min_by_key(|r| r.bp_distance) {
+            match first_focused_repair_pool
+                .iter()
+                .min_by_key(|r| r.bp_distance)
+            {
                 Some(repaired) if repaired.bp_distance < final_check_result.bp_distance => {
                     println!(
                         "final focused global repair improved: {} -> {}",
                         final_check_result.bp_distance,
                         repaired.bp_distance
                     );
-                    repaired.sequence
+
+                    repaired.sequence.clone()
                 }
                 _ => {
                     println!(
@@ -1805,18 +1931,67 @@ pub fn decomposed_hill_climb_design(
                 final_repair_max_steps
             );
 
-            let if_slices = false;
+            
 
-            let final_repair_pool = multi_start_hill_climb_design(
-                &full_seq,
-                target,
-                remaining_mismatches,
-                n_starts,
-                final_repair_max_steps,
-                wobble_frequency,
-                if_slices,
-                true,
+            let initial_temp: f64 = 1.0;
+            let final_temp: f64 = 0.01;
+            let cooling_rate: f64 =
+                (final_temp / initial_temp).powf(1.0 / final_repair_max_steps as f64);
+
+            
+            let mut repair_seeds: Vec<String> = first_focused_repair_pool
+                .iter()
+                .map(|result| result.sequence.clone())
+                .collect();
+
+            repair_seeds.push(full_seq.clone());
+
+            
+            repair_seeds.sort_unstable();
+            repair_seeds.dedup();
+
+            println!(
+                "running focused repair for {} pool sequences in parallel",
+                repair_seeds.len()
             );
+
+            
+            let final_repair_pool: Vec<DesignResult> = repair_seeds
+                .par_iter()
+                .flat_map_iter(|seed| {
+                    
+                    let seed_result = bp_distance_to_target(seed, target);
+
+                    let seed_mismatches: Vec<usize> = if RIBOSOMAL_RNA {
+                        identify_mismatches(&seed_result.structure, target)
+                            .into_iter()
+                            .filter(|&position| ribo_set.contains(&position))
+                            .collect()
+                    } else {
+                        identify_mismatches(&seed_result.structure, target)
+                    };
+
+                    
+                    if seed_mismatches.is_empty() {
+                        return vec![seed_result].into_iter();
+                    }
+
+                    hill_climb_design(
+                        seed,
+                        target,
+                        seed_mismatches,
+                        final_repair_max_steps,
+                        wobble_frequency,
+                        1,       
+                        initial_temp,
+                        cooling_rate,
+                        100,     
+                        1.0,     
+                        false,   
+                        true,    
+                    )
+                    .into_iter()
+                }).collect();
 
             match final_repair_pool.into_iter().min_by_key(|r| r.bp_distance) {
                 Some(repaired) if repaired.bp_distance < final_check_result.bp_distance => {
@@ -2214,6 +2389,39 @@ fn energy_of_target_structure(seq: &str, target: &str) -> f64 {
         energy as f64
     }
 }
+
+fn score_candidate(
+    seq: &str,
+    target_structure: &str,
+    pair_map: &HashMap<usize, usize>,
+) -> CandidateScore {
+    
+    let fold = bp_distance_to_target(seq, target_structure);
+
+    let pk_mismatches = pk_pair_mismatches(
+        seq,
+        pair_map,
+        target_structure,
+    );
+
+    
+    let target_energy = energy_of_target_structure(
+        seq,
+        target_structure,
+    );
+
+    let energy_gap = (target_energy - fold.mfe).max(0.0);
+
+    CandidateScore {
+        structure: fold.structure,
+        mfe: fold.mfe,
+        total_distance:
+            fold.bp_distance + 2 * pk_mismatches as i64,
+        energy_gap,
+    }
+
+}
+
 
 fn find_mismatched_positions(
     current_structure: &str,
@@ -3059,3 +3267,52 @@ fn ensemble_diversity(seq: &str, target: &str) -> (f64, f64) {
         (nested_div, pk_div)
     }
 }
+
+fn reduce_positions_by_mismatch_proximity(
+    current_structure: &str,
+    target_structure: &str,
+    current_positions: &[usize],
+    minimum_positions: usize,
+) -> Vec<usize> {
+    let mismatches = identify_mismatches(
+        current_structure,
+        target_structure,
+    );
+
+    
+    if mismatches.is_empty() {
+        return current_positions.to_vec();
+    }
+
+    let mut ranked_positions: Vec<(usize, usize)> = current_positions
+        .iter()
+        .copied()
+        .map(|position| {
+            // Distance to the nearest structural mismatch.
+            let nearest_mismatch_distance = mismatches
+                .iter()
+                .map(|&mismatch| position.abs_diff(mismatch))
+                .min()
+                .unwrap_or(usize::MAX);
+
+            (position, nearest_mismatch_distance)
+        })
+        .collect();
+
+    
+    ranked_positions.sort_by_key(|&(_, distance)| distance);
+
+    let keep_count = minimum_positions.min(ranked_positions.len());
+
+    let mut reduced_positions: Vec<usize> = ranked_positions
+        .into_iter()
+        .take(keep_count)
+        .map(|(position, _)| position)
+        .collect();
+
+    reduced_positions.sort_unstable();
+    reduced_positions
+}
+
+
+
