@@ -23,6 +23,7 @@ const RIBOSOMAL_RNA: bool = false;
 // RIBOSOMA_SEQUENCE can be changed to any start sequence of desire. If it is longer than the structure the sequence will be sliced accordingly.
 const RIBOSOME_SEQUENCE: &str = "GGCGCCCGCCCCGCGCCGGGGGCCGCCGGCCGGCGGCCCCGGGGGCCCCCCGCCCCCCCGCCCCGCGCGCCCCGCGCGGCGCGGGCCGCGGGCCGGGGGCGGCGCCGGGGCCCCCCCGCCCCCGGCCGGGCCCGGGGCCCGCGCCGGCCCCCCCCGGCGCCGGCGGGCGGGGCCCGCGCCCCGCCCCCGCGCGGCCCGCCCGCCGCGCCCCCCGCCGCCCGGC";
 const GC_TEST: bool = false; // This is just if you want your start sequence to be purely paired GC-pairs
+const GC_THRESHOLD: f64 = 50.00; // must be a float
 
 fn main() -> io::Result<()> {
     const DEFAULT_N_RUNS: usize = 3;
@@ -1788,7 +1789,7 @@ pub fn decomposed_hill_climb_design(
         println!("Skipping GC cleanup");
         full_seq
     } else {
-        gc_cleanup(&full_seq, start_seq, target)
+        gc_cleanup(&full_seq, start_seq, target, GC_THRESHOLD)
     };
 
     let result = bp_distance_to_target(&full_seq, target);
@@ -2790,7 +2791,7 @@ fn gc_content(sequence: &str) -> Option<f64> {
                 gc_count += 1;
                 base_count += 1;
             }
-            b'A' | b'T' => {
+            b'A' | b'U' => {
                 base_count += 1;
             }
             _ => {} 
@@ -2833,6 +2834,7 @@ fn gc_cleanup(
     seq_in: &str,
     original_annotation: &str,
     target: &str,
+    min_gc_percent: f64,
 ) -> String {
     assert_eq!(seq_in.len(), original_annotation.len());
     assert_eq!(seq_in.len(), target.len());
@@ -2875,6 +2877,14 @@ fn gc_cleanup(
             if !is_gc_pair {
                 continue;
             }
+
+            let live_seq = String::from_utf8(seq.clone()).expect("sequence must be valid UTF-8");
+            let current_gc = gc_content(&live_seq).unwrap_or(0.0);
+            let gc_after = current_gc - (200.0/seq.len() as f64);
+
+            if gc_after < min_gc_percent {
+                continue;
+            } 
 
             
             let mut best_trial: Option<(Vec<u8>, DesignResult)> = None;
