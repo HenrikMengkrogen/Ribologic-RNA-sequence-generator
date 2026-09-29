@@ -206,8 +206,10 @@ fn main() -> io::Result<()> {
                     println!("mfe structure: {}", r.mfe_structure);
                     println!("bp_distance  : {}", r.bp_distance);
                     println!("mfe          : {:.2}", r.mfe);
+                    println!("Ensemble Diversity: {:.2}", r.ensemble_diversity);
                     println!("slices       : {}", r.n_slices);
                     println!("Ribosomal RNA used: {}", RIBOSOMAL_RNA);
+                    
 
                     match gc_content(&r.sequence) {
                         Some(gc) => println!("GC Content: {:.2}%", gc),
@@ -250,6 +252,7 @@ fn main() -> io::Result<()> {
                     ));
                     final_results.push_str(&format!("bp_distance  : {}\n", r.bp_distance));
                     final_results.push_str(&format!("mfe          : {:.2}\n", r.mfe));
+                    final_results.push_str(&format!("Ensemble Diversity: {:.2}\n", r.ensemble_diversity));
                     final_results.push_str(&format!("slices       : {}\n", r.n_slices));
                     final_results.push_str(&format!(
                         "Ribosomal RNA used: {}\n",
@@ -315,6 +318,7 @@ fn main() -> io::Result<()> {
                     writeln!(file, "mfe structure : {}", r.mfe_structure).unwrap();
                     writeln!(file, "bp_distance   : {}", r.bp_distance).unwrap();
                     writeln!(file, "mfe           : {:.2}", r.mfe).unwrap();
+                    writeln!(file, "Ensemble Diversity : {:.2}", r.ensemble_diversity).unwrap();
                     writeln!(file, "slices        : {}", r.n_slices).unwrap();
                     writeln!(file, "Ribosomal RNA used: {}", RIBOSOMAL_RNA).unwrap();
 
@@ -371,7 +375,7 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // This runs only once every run and input file has finished.
+    
     if !final_results.is_empty() && ask_to_view_results()? {
         show_in_pager(&final_results)?;
     }
@@ -595,6 +599,7 @@ pub struct GlobalDesignResult {
     n_slices: usize,
     ribosome_identity: Option<f64>,
     ribosome_mismatches: Option<Vec<usize>>,
+    ensemble_diversity: f64,         
 }
 #[derive(Debug, Clone)]
 pub struct Substructure {
@@ -1794,6 +1799,8 @@ pub fn decomposed_hill_climb_design(
     let pair_map = get_pair_map(target);
     let pk_penalty = pk_pair_mismatches(&full_seq, &pair_map, target) as i64;
 
+    let ensemble_diversity_score: f64 = ensemble_diversity(&full_seq, target);
+
     println!("---- global verification ----");
     println!("designed:                 {}", full_seq);
     println!("target:                   {}", target);
@@ -1804,6 +1811,7 @@ pub fn decomposed_hill_climb_design(
     println!("pk penalty (bad pk pairs): {}", pk_penalty);
     println!("bp_distance (pk-aware):   {}", result.bp_distance);
     println!("mfe (VRNA, no pk energy): {:.2}", result.mfe);
+    println!("ensemble diversity:       {:.2}", ensemble_diversity_score);
 
     let pk_predictions = fold_with_pkplex(&full_seq);
     if !pk_predictions.is_empty() {
@@ -1840,6 +1848,7 @@ pub fn decomposed_hill_climb_design(
         n_slices: slices.len(),
         ribosome_identity,
         ribosome_mismatches,
+        ensemble_diversity: ensemble_diversity_score,   
     })
 }
 
@@ -2917,4 +2926,50 @@ fn gc_cleanup(
     );
 
     current
+}
+
+fn ensemble_diversity(seq: &str, target: &str) -> f64 {
+    let n = seq.len();
+    let target_no_pk = strip_pseudoknots(target);
+    let pair_map = get_pair_map(&target_no_pk);
+
+    unsafe {
+        let mut md: vrna_md_t = std::mem::zeroed();
+        vrna_md_set_default(&mut md);
+        md.temperature = 37.0;
+        md.dangles = 1;
+
+        let seq_c: CString = CString::new(seq).expect("seq has interior NUL");
+        let fc = vrna_fold_compound(seq_c.as_ptr(), &md, VRNA_OPTION_PF as u32);
+        assert!(!fc.is_null(), "fold_compound returned null");
+
+        let mut pf_struct: Vec<i8> = vec![0i8; n + 1];
+        let _pf_energy = vrna_pf(fc, pf_struct.as_mut_ptr());
+
+        let exp_matrices = (*fc).exp_matrices;
+        assert!(!exp_matrices.is_null(), "exp_matrices is null");
+
+        let probs_ptr = (*exp_matrices).__bindgen_anon_1.__bindgen_anon_1.probs;
+        let iindx_ptr = (*fc).iindx;
+        assert!(!probs_ptr.is_null(), "probs is null after vrna_pf");
+        assert!(!iindx_ptr.is_null(), "iindx is null");
+
+        let mut diversity = 0.0_f64;
+
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let iindx_val: isize = *iindx_ptr.add(i + 1) as isize;
+                let idx: isize = iindx_val - (j + 1) as isize;
+                let p_ij: f64 = (*probs_ptr.offset(idx)) as f64;
+
+                let is_target_pair: bool = pair_map.get(&i) == Some(&j);
+
+                diversity += if is_target_pair { 1.0 - p_ij } else { p_ij };
+            }
+        }
+
+        vrna_fold_compound_free(fc);
+
+        diversity
+    }
 }

@@ -1,0 +1,10 @@
+==== FINAL (run 2) ====
+sequence      : AUAUAAUAUCGAUAUAUAUAUAUAUAUAUAUCGAAUAUAUAUUCGUAUAUAUUCCCGUGCGAGACGCUCGGCUCCAUAGCUAAUUCGUUAGUUAUGUCGAGGAGAGGGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCGAUAUAUAUAUAUAUAUAUAUCGGACUGAAGGAGGCACGGUCCGCCCUCCGUUUCGACGGGGGGCGAUAUUAUAU
+target        : (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.(.((...((((((((((((....)))))))))..)).)...))...).)))))))))(((((((..[[[[[[.)))))))))))))))))))))))))))))((((((..]]]]]].))))))(((((((((....)))))))))))))))))))
+mfe structure : (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.(.((...((((((((((((....)))))))))..)).)...))...).)))))))))(((((((..[[[[[[.)))))))))))))))))))))))))))))((((((..]]]]]].))))))(((((((((....)))))))))))))))))))
+bp_distance   : 0
+mfe           : -81.40
+Ensemble Diversity : 13.99
+slices        : 12
+Ribosomal RNA used: false
+GC Content: 61.94%
