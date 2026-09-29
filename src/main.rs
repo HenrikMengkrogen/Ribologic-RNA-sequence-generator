@@ -8,6 +8,7 @@ use ffi::*;
 //use librna_sys::*;
 use rand::RngExt;
 use rand::seq::IndexedRandom;
+use rand::seq::SliceRandom;
 use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -28,7 +29,7 @@ const GC_THRESHOLD: f64 = 50.00; // must be a float
 fn main() -> io::Result<()> {
     const DEFAULT_N_RUNS: usize = 3;
     const DEFAULT_N_STARTS: i64 = 5;
-    const MAX_STEPS: i64 = 2_100;
+    const MAX_STEPS: i64 = 1_500;
     const WOBBLE_FREQUENCY: f64 = 0.0;
 
     println!("========================================");
@@ -456,8 +457,8 @@ fn mutate_seq(seq_in: &str, structure: &str, wobble_frequency: f64, last_global 
     let paired_nucleotides: &[char] = if GC_TEST || last_global{ // Change here if you want a higher or lower GC-content
             &['G', 'C']
         } else {
-            //&['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
-            &['G', 'C'] 
+            &['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
+            //&['G', 'C'] 
             //&['A', 'U', 'G', 'C']
             //&['A', 'U']
         };
@@ -474,7 +475,8 @@ fn mutate_seq(seq_in: &str, structure: &str, wobble_frequency: f64, last_global 
     let purines: &[char] = if GC_TEST{
             &['G', 'C']
         } else {
-            &['A', 'G', 'U']
+            //&['A', 'G', 'U']
+            &['A', 'U']
         };
 
     
@@ -722,6 +724,7 @@ fn hill_climb_design(
     reheat_temp: f64,
     if_slices: bool,
     last_global : bool,
+    
 ) -> Vec<DesignResult> {
     let pair_map = get_pair_map(target_structure);
 
@@ -738,7 +741,10 @@ fn hill_climb_design(
 
     let dist_threshold: i64 = if RIBOSOMAL_RNA {
         ((n_fixed as f64) / 6.0).ceil() as i64
-    } else {
+    }else if if_slices {
+        0
+    } 
+    else {
         ((n_fixed as f64) / 12.0).ceil() as i64
     };
 
@@ -751,12 +757,12 @@ fn hill_climb_design(
     };
 
     let p_threshold: f64 = if fixed_fraction > 0.6 && !last_global {
-        0.70
+        0.20
     } else if hard_loops && !last_global{
-        0.75
+        0.25
     } else {
         if !last_global{
-        0.60 } else {
+        0.20 } else {
             0.10
         }
     };
@@ -877,6 +883,7 @@ fn hill_climb_design(
     let mut current_dist_for_testing: Vec<i64> = vec![current_dist];
 
     // ##################
+    
 
     for step in 0..max_steps {
         if best_candidates[0].0 == 0 && best_candidates.len() >= n_keep {
@@ -905,7 +912,7 @@ fn hill_climb_design(
                     all_mismatches.push(i);
                 }
             }
-
+            
             // Fixed mismatched positions = mismatches not in n_positions
             use std::collections::HashSet;
             let designable_set: HashSet<usize> = n_positions.iter().copied().collect();
@@ -1517,10 +1524,58 @@ pub fn decomposed_hill_climb_design(
             false,
         );
 
-        let best = pool
+        let mut best = pool
             .into_iter()
             .min_by_key(|r| r.bp_distance)
             .ok_or_else(|| format!("slice {} returned empty pool", idx))?;
+
+        const MAX_REFINE_ROUNDS: usize = 3;
+        const MAX_STALLED_ROUNDS: usize = 2;
+        let mut stalled = 0;
+
+        for round in 1..=MAX_REFINE_ROUNDS {
+            if best.bp_distance == 0 {
+                break;
+            }
+            
+            
+            let remaining: Vec<usize> = identify_mismatches(&best.structure, &sub.structure);
+                
+
+            if remaining.is_empty() {
+                break; 
+            }
+
+            println!(
+                "  [slice {}] refine round {}: dist={}, {} free positions",
+                idx + 1, round, best.bp_distance, remaining.len()
+            );
+
+            let candidate = multi_start_hill_climb_design(
+                &best.sequence,          
+                &sub.structure,
+                remaining,
+                n_starts,
+                25,
+                wobble_frequency,
+                false,
+                false,
+            )
+            .into_iter()
+            .min_by_key(|r| r.bp_distance)
+            .ok_or_else(|| format!("slice {} returned empty pool", idx))?;
+
+            if candidate.bp_distance < best.bp_distance {
+                best = candidate;
+                stalled = 0;
+            } else {
+                stalled += 1;
+                if stalled >= MAX_STALLED_ROUNDS {
+                    break; 
+                }
+            }
+        }
+
 
         let fixed_fraction = 1.0 - (n_designable as f64 / n_total as f64);
 
@@ -1577,8 +1632,7 @@ pub fn decomposed_hill_climb_design(
             ('U', 'A'),
             ('G', 'C'),
             ('C', 'G'),
-            ('G', 'U'),
-            ('U', 'G'),
+            
         ];
         let mut n_pk_fixed = 0;
         for &(i, j) in &pk_pairs {
@@ -1620,10 +1674,10 @@ pub fn decomposed_hill_climb_design(
         );
 
         let repair_max_steps: i64 =
-            if ((pre_repair_result.bp_distance as f64 / 0.008).round() as i64) < 800 {
+            if ((pre_repair_result.bp_distance as f64 / 0.008).round() as i64) < 150 {
                 (pre_repair_result.bp_distance as f64 / 0.008).round() as i64
             } else {
-                800
+                150
             };
         println!(
             "Max number of iterations for global repair: {}",
@@ -1800,7 +1854,35 @@ pub fn decomposed_hill_climb_design(
     let pair_map = get_pair_map(target);
     let pk_penalty = pk_pair_mismatches(&full_seq, &pair_map, target) as i64;
 
-    let ensemble_diversity_score: f64 = ensemble_diversity(&full_seq, target);
+    let (div_nested, div_pk) = ensemble_diversity(&full_seq, target);
+    let ensemble_diversity_score = div_nested + div_pk;
+
+    
+
+    
+    
+
+    let pk_predictions = fold_with_pkplex(&full_seq);
+    let pk_pairs = get_pk_pairs(target);
+
+    let hit_matches_target = |pk: &PkPrediction| -> bool {
+        pk_pairs.iter().any(|&(i, j)| {
+            (i >= pk.start_5 && i <= pk.end_5 && j >= pk.start_3 && j <= pk.end_3)
+                || (j >= pk.start_5 && j <= pk.end_5 && i >= pk.start_3 && i <= pk.end_3)
+        })
+    };
+
+    let pk_energy: f64 = pk_predictions
+        .iter()
+        .filter(|pk| hit_matches_target(pk))
+        .map(|pk| pk.dgint) // or dgpk, see the earlier note
+        .sum();
+
+    let mfe_with_pk = result.mfe + pk_energy;
+
+
+
+    
 
     println!("---- global verification ----");
     println!("designed:                 {}", full_seq);
@@ -1811,10 +1893,10 @@ pub fn decomposed_hill_climb_design(
     println!("bp_distance (VRNA only):  {}", result_no_pk.bp_distance);
     println!("pk penalty (bad pk pairs): {}", pk_penalty);
     println!("bp_distance (pk-aware):   {}", result.bp_distance);
-    println!("mfe (VRNA, no pk energy): {:.2}", result.mfe);
+    println!("mfe                    : {:.2}", mfe_with_pk);
     println!("ensemble diversity:       {:.2}", ensemble_diversity_score);
 
-    let pk_predictions = fold_with_pkplex(&full_seq);
+    
     if !pk_predictions.is_empty() {
         println!("---- pkplex verification ----");
         for (k, pk) in pk_predictions.iter().enumerate() {
@@ -1845,7 +1927,7 @@ pub fn decomposed_hill_climb_design(
         sequence: full_seq,
         mfe_structure: mfe_struct_with_pk,
         bp_distance: result.bp_distance,
-        mfe: result.mfe,
+        mfe: mfe_with_pk,
         n_slices: slices.len(),
         ribosome_identity,
         ribosome_mismatches,
@@ -2842,106 +2924,87 @@ fn gc_cleanup(
     let pair_map = get_pair_map(target);
     let annotation = original_annotation.as_bytes();
     let mut seq: Vec<u8> = seq_in.as_bytes().to_vec();
+    let mut rng = rand::rng();
 
-    let mut current = String::from_utf8(seq.clone()).expect("sequence must be valid UTF-8");
-    let mut current_result = bp_distance_to_target(&current, target);
+    let mut current_result =
+        bp_distance_to_target(&String::from_utf8(seq.clone()).unwrap(), target);
     let mut current_dist = current_result.bp_distance;
 
+    
+    let mut pairs: Vec<(usize, usize)> = pair_map
+        .iter()
+        .filter_map(|(&i, &j)| (i < j).then_some((i, j)))
+        .filter(|&(i, j)| annotation[i] == b'N' && annotation[j] == b'N')
+        .filter(|&(i, j)| matches!((seq[i], seq[j]), (b'G', b'C') | (b'C', b'G')))
+        .collect();
+    pairs.sort_unstable();
+    pairs.dedup();
+
+    
+    pairs.shuffle(&mut rng);
+
+    
+    let step = 200.0 / seq.len() as f64;
+    let mut gc = gc_content(&String::from_utf8(seq.clone()).unwrap()).unwrap_or(0.0);
+
     let mut total_replacements = 0usize;
-    let mut changed = true;
 
-    while changed {
-        changed = false;
-
+    for &(i, j) in &pairs {
         
-        let mut pairs: Vec<(usize, usize)> = pair_map
-            .iter()
-            .filter_map(|(&i, &j)| (i < j).then_some((i, j)))
-            .collect();
+        if gc - step < min_gc_percent {
+            break;
+        }
 
-        pairs.sort_unstable();
-        pairs.dedup();
+        let mut options = [(b'A', b'U'), (b'U', b'A')];
+        options.shuffle(&mut rng);
 
-        for (i, j) in pairs {
-            
-            if annotation[i] != b'N' || annotation[j] != b'N' {
+        let mut best_trial: Option<(Vec<u8>, DesignResult)> = None;
+        for (left, right) in options {
+            let mut trial = seq.clone();
+            trial[i] = left;
+            trial[j] = right;
+
+            let trial_result =
+                bp_distance_to_target(&String::from_utf8(trial.clone()).unwrap(), target);
+            if trial_result.bp_distance > current_dist {
                 continue;
             }
 
-            
-            let is_gc_pair = matches!(
-                (seq[i], seq[j]),
-                (b'G', b'C') | (b'C', b'G')
-            );
-
-            if !is_gc_pair {
-                continue;
-            }
-
-            let live_seq = String::from_utf8(seq.clone()).expect("sequence must be valid UTF-8");
-            let current_gc = gc_content(&live_seq).unwrap_or(0.0);
-            let gc_after = current_gc - (200.0/seq.len() as f64);
-
-            if gc_after < min_gc_percent {
-                continue;
-            } 
-
-            
-            let mut best_trial: Option<(Vec<u8>, DesignResult)> = None;
-
-            for (left, right) in [(b'A', b'U'), (b'U', b'A')] {
-                let mut trial = seq.clone();
-                trial[i] = left;
-                trial[j] = right;
-
-                let trial_string =
-                    String::from_utf8(trial.clone()).expect("sequence must be valid UTF-8");
-                let trial_result = bp_distance_to_target(&trial_string, target);
-
-                
-                if trial_result.bp_distance > current_dist {
-                    continue;
+            let replace_best = match &best_trial {
+                None => true,
+                Some((_, b)) => {
+                    trial_result.bp_distance < b.bp_distance
+                        || (trial_result.bp_distance == b.bp_distance
+                            && trial_result.mfe < b.mfe)
                 }
-
-                let replace_best = match &best_trial {
-                    None => true,
-                    Some((_, best_result)) => {
-                        trial_result.bp_distance < best_result.bp_distance
-                            || (trial_result.bp_distance == best_result.bp_distance
-                                && trial_result.mfe < best_result.mfe)
-                    }
-                };
-
-                if replace_best {
-                    best_trial = Some((trial, trial_result));
-                }
+            };
+            if replace_best {
+                best_trial = Some((trial, trial_result));
             }
+        }
 
-            if let Some((trial, trial_result)) = best_trial {
-                seq = trial;
-                current_dist = trial_result.bp_distance;
-                current_result = trial_result;
-                changed = true;
-                total_replacements += 1;
-            }
+        if let Some((trial, trial_result)) = best_trial {
+            seq = trial;
+            current_dist = trial_result.bp_distance;
+            current_result = trial_result;
+            gc -= step;
+            total_replacements += 1;
         }
     }
 
-    current = String::from_utf8(seq).expect("sequence must be valid UTF-8");
-
     println!(
         "GC cleanup complete: {} GC pair(s) converted; final bp_distance={}",
-        total_replacements,
-        current_result.bp_distance
+        total_replacements, current_result.bp_distance
     );
 
-    current
+    String::from_utf8(seq).expect("sequence must be valid UTF-8")
 }
-
-fn ensemble_diversity(seq: &str, target: &str) -> f64 {
+fn ensemble_diversity(seq: &str, target: &str) -> (f64, f64) {
     let n = seq.len();
+    let seq_b = seq.as_bytes();
     let target_no_pk = strip_pseudoknots(target);
     let pair_map = get_pair_map(&target_no_pk);
+    let pk_pairs = get_pk_pairs(target); // your existing helper: Vec<(usize, usize)>
 
     unsafe {
         let mut md: vrna_md_t = std::mem::zeroed();
@@ -2949,37 +3012,50 @@ fn ensemble_diversity(seq: &str, target: &str) -> f64 {
         md.temperature = 37.0;
         md.dangles = 1;
 
-        let seq_c: CString = CString::new(seq).expect("seq has interior NUL");
+        let seq_c = CString::new(seq).expect("seq has interior NUL");
         let fc = vrna_fold_compound(seq_c.as_ptr(), &md, VRNA_OPTION_PF as u32);
         assert!(!fc.is_null(), "fold_compound returned null");
 
         let mut pf_struct: Vec<i8> = vec![0i8; n + 1];
-        let _pf_energy = vrna_pf(fc, pf_struct.as_mut_ptr());
+        let _ = vrna_pf(fc, pf_struct.as_mut_ptr());
 
         let exp_matrices = (*fc).exp_matrices;
         assert!(!exp_matrices.is_null(), "exp_matrices is null");
-
         let probs_ptr = (*exp_matrices).__bindgen_anon_1.__bindgen_anon_1.probs;
         let iindx_ptr = (*fc).iindx;
-        assert!(!probs_ptr.is_null(), "probs is null after vrna_pf");
-        assert!(!iindx_ptr.is_null(), "iindx is null");
+        assert!(!probs_ptr.is_null() && !iindx_ptr.is_null());
 
-        let mut diversity = 0.0_f64;
+        let mut nested_div = 0.0_f64;
+        let mut p_paired = vec![0.0_f64; n]; // total pairing probability per base
 
         for i in 0..n {
             for j in (i + 1)..n {
-                let iindx_val: isize = *iindx_ptr.add(i + 1) as isize;
-                let idx: isize = iindx_val - (j + 1) as isize;
-                let p_ij: f64 = (*probs_ptr.offset(idx)) as f64;
+                let idx = *iindx_ptr.add(i + 1) as isize - (j + 1) as isize;
+                let p_ij = *probs_ptr.offset(idx) as f64;
 
-                let is_target_pair: bool = pair_map.get(&i) == Some(&j);
+                p_paired[i] += p_ij;
+                p_paired[j] += p_ij;
 
-                diversity += if is_target_pair { 1.0 - p_ij } else { p_ij };
+                nested_div += if pair_map.get(&i) == Some(&j) { 1.0 - p_ij } else { p_ij };
             }
         }
-
         vrna_fold_compound_free(fc);
 
-        diversity
+        
+        let mut pk_div = 0.0_f64;
+        for &(i, j) in &pk_pairs {
+            let canonical = matches!(
+                (seq_b[i], seq_b[j]),
+                (b'A', b'U') | (b'U', b'A') | (b'G', b'C') | (b'C', b'G') | (b'G', b'U') | (b'U', b'G')
+            );
+            let q = if canonical {
+                (1.0 - p_paired[i]).max(0.0) * (1.0 - p_paired[j]).max(0.0)
+            } else {
+                0.0
+            };
+            pk_div += 1.0 - q;
+        }
+
+        (nested_div, pk_div)
     }
 }
