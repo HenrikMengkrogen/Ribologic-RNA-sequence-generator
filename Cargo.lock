@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "Ribosome_mut_program"
+name = "Ribologic-RNA-sequence-generator"
 version = "0.1.0"
 dependencies = [
  "bindgen",
