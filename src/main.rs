@@ -29,7 +29,7 @@ const GC_THRESHOLD: f64 = 50.00; // must be a float
 fn main() -> io::Result<()> {
     const DEFAULT_N_RUNS: usize = 3;
     const DEFAULT_N_STARTS: i64 = 5;
-    const MAX_STEPS: i64 = 1_500;
+    const MAX_STEPS: i64 = 1_000;
     const WOBBLE_FREQUENCY: f64 = 0.0;
 
     println!("========================================");
@@ -744,11 +744,20 @@ pub fn bp_distance_to_target(seq: &str, target: &str) -> DesignResult {
     let n = seq.len();
     let target_no_pk = strip_pseudoknots(target);
 
+    let pair_map = get_pair_map(&target_no_pk);
+    let max_span = pair_map
+        .iter()
+        .map(|(&i, &j)| i.abs_diff(j))
+        .max()
+        .unwrap_or(0);
+
     unsafe {
         let mut md: vrna_md_t = std::mem::zeroed();
         vrna_md_set_default(&mut md);
         md.temperature = 37.0;
         md.dangles = 1;
+        
+        md.max_bp_span = (max_span + 30) as i32;
 
         let seq_bytes = seq.as_bytes();
         let target_bytes = target_no_pk.as_bytes();
@@ -987,7 +996,7 @@ fn hill_climb_design(
 
     // ##################
     
-    
+    let mut last_expand_step: i64 = -1000;
     for step in 0..max_steps {
         if best_candidates[0].0 == 0 && best_candidates.len() >= n_keep {
             break;
@@ -1277,7 +1286,7 @@ fn hill_climb_design(
 
         
 
-        if cand_dist <= dist_threshold && step % 20 == 0 {
+        if cand_dist <= dist_threshold && step % 50 == 0 {
             let current_bytes = current_structure.as_bytes();
 
             let fixed_mismatches: Vec<usize> = (0..current_bytes.len())
@@ -1346,77 +1355,65 @@ fn hill_climb_design(
         }
 
         const MIN_ACTIVE_POSITIONS: usize = 8;
+        const STAGNATION_STEPS: i64 = 20;
+        const CLOSE_TARGET_DISTANCE: i64 = 4;
+        const EXPANSION_RADIUS: usize = 5;
+        
+       
 
+        
+        
         if step > 0 && step % 20 == 0 && current_dist > 0 {
-            let old_n_positions = n_positions.clone();
+            let stagnation_steps = step - last_improvement_step;
+            let is_stagnating_near_target =
+                current_dist <= CLOSE_TARGET_DISTANCE && stagnation_steps >= STAGNATION_STEPS;
 
-            let reduced_positions = reduce_positions_by_mismatch_proximity(
-                &current_structure,
-                target_structure,
-                &old_n_positions,
-                MIN_ACTIVE_POSITIONS,
-            );
+            if is_stagnating_near_target {
+                // Widen the active set around the remaining mismatches
+                let expanded = expand_positions_near_mismatches(
+                    &current_structure,
+                    target_structure,
+                    &n_positions,                    // expand from the current active set
+                    &original_designable_positions,
+                    &pair_map,
+                    EXPANSION_RADIUS,
+                );
 
-            if reduced_positions.len() < old_n_positions.len() {
-                
+                if expanded.len() > n_positions.len() {
+                    println!(
+                        "stagnation at dist {}: expanding {} -> {} positions",
+                        current_dist, n_positions.len(), expanded.len()
+                    );
+                    n_positions = expanded;
+                    designable_positions = n_positions.iter().copied().collect();
+                    last_expand_step = step;
 
-                n_positions = reduced_positions;
-                designable_positions = n_positions.iter().copied().collect();
-
-                let reseeded = mutate_seq(
-                    &current,
+                    // optional reseed block here, as in your code
+                }
+            } else if step - last_expand_step >= 60 {
+                // Not stagnating (and not just expanded): narrow toward the mismatches
+                let reduced = reduce_positions_by_mismatch_proximity(
+                    &current_structure,
                     target_structure,
                     &n_positions,
-                    wobble_frequency,
-                    true,
+                    MIN_ACTIVE_POSITIONS,
                 );
-
-                let reseed_score = score_candidate(
-                    &reseeded,
-                    target_structure,
-                    &pair_map,
-                );
-
-                let reseed_dist = reseed_score.total_distance;
-                let reseed_energy_gap = reseed_score.energy_gap;
-
-
-                if reseed_dist < current_dist
-                    || (reseed_dist == current_dist
-                        && reseed_energy_gap < current_energy_gap)
-                {
-                    current = reseeded;
-                    current_dist = reseed_score.total_distance;
-                    current_structure = reseed_score.structure;
-                    current_mfe = reseed_score.mfe;
-                    current_energy_gap = reseed_score.energy_gap;
-                    last_improvement_step = step;
-
-                    let already_present = best_candidates
-                        .iter()
-                        .any(|(_, sequence, _, _)| sequence == &current);
-
-                    if !already_present {
-                        best_candidates.push((
-                            current_dist,
-                            current.clone(),
-                            current_structure.clone(),
-                            current_mfe,
-                        ));
-
-                        best_candidates.sort_by(|a, b| a.0.cmp(&b.0));
-                        best_candidates.truncate(n_keep);
-                    }
+                if reduced.len() < n_positions.len() {
+                    n_positions = reduced;
+                    designable_positions = n_positions.iter().copied().collect();
                 }
-
-            } 
+            }
         }
 
 
-        const STAGNATION_LIMIT: i64 = 500;
+        let stall_limit: i64 = if current_dist <= CLOSE_TARGET_DISTANCE {
+            200            
+        } else {
+            100             
+        };
 
         
-        if step - last_improvement_step >= STAGNATION_LIMIT {
+        if step - last_improvement_step >= stall_limit {
             println!(
                 "  stopping stagnant restart at step {step}: \
                 dist={current_dist}, best_dist={}",
@@ -1583,6 +1580,47 @@ pub fn decomposed_hill_climb_design(
         slices.len()
     );
 
+    let global_protected_positions: HashSet<usize> =
+        conserved_motifs.iter().copied().collect();
+
+
+
+    let mut global_designable: Vec<usize> = if RIBOSOMAL_RNA {
+            
+            ribo_set
+                .iter()
+                .copied()
+                .filter(|&global_pos| global_pos < start_seq.len())
+                .filter(|global_pos| !global_protected_positions.contains(global_pos))
+                .collect()
+        } else {
+            
+            start_seq
+                .as_bytes()
+                .iter()
+                .enumerate()
+                .filter_map(|(global_pos, &base)| {
+                    matches!(base, b'N' | b'K' | b'S').then_some(global_pos)
+                })
+                .filter(|global_pos| !global_protected_positions.contains(global_pos))
+                .collect()
+        };
+
+        
+        global_designable.sort_unstable();
+        global_designable.dedup();
+
+        if global_designable.is_empty() {
+            println!(
+                "[global repair] no designable positions found; skipping global repair"
+            );
+        } else {
+            println!(
+                "[global repair] {} designable positions available",
+                global_designable.len()
+            );}
+    
+    let mut unresolved: HashSet<usize> = HashSet::new();
     for (idx, sub) in slices.iter().enumerate() {
         let local_len = sub.end - sub.start;
         let local_protected_positions =
@@ -1602,22 +1640,40 @@ pub fn decomposed_hill_climb_design(
                 .collect()
         };
 
-        if local_designable.is_empty() {
-            println!(
-                "[slice {}/{}] range=[{}, {}] — no designable positions, skipping",
-                idx + 1,
-                slices.len(),
-                sub.start,
-                sub.end
-            );
+        
+
+        let child_mismatches: Vec<usize> = unresolved
+            .iter()
+            .filter(|&&g| g >= sub.start && g < sub.end)
+            .map(|&g| g - sub.start)
+            .filter(|p| !RIBOSOMAL_RNA || !local_protected_positions.contains(p))
+            .collect();
+                
+        if local_designable.is_empty() && child_mismatches.is_empty() {
+            let slice_seq = String::from_utf8(seq[sub.start..sub.end].to_vec()).unwrap();
+            let scored = bp_distance_to_target(&slice_seq, &sub.structure);
+            println!("[slice {}/{}] fixed slice, dist={}", idx + 1, slices.len(), scored.bp_distance);
+            for p in identify_mismatches(&scored.structure, &strip_pseudoknots(&sub.structure)) {
+                unresolved.insert(p + sub.start);
+            }
             continue;
         }
+
+        let refine_set: HashSet<usize> = local_designable
+            .iter()
+            .chain(child_mismatches.iter())
+            .copied()
+            .collect();
+
 
         let mut slice_start_bytes = seq[sub.start..sub.end].to_vec();
         for &loc in &local_designable {
             slice_start_bytes[loc] = b'N';
         }
         let slice_start = String::from_utf8(slice_start_bytes).unwrap();
+
+        let n_designable = refine_set.len();
+        let n_total = sub.end - sub.start;
 
         println!(
             "[slice {}/{}] range=[{}, {}] len={} designable={:?} (local={:?})",
@@ -1632,24 +1688,31 @@ pub fn decomposed_hill_climb_design(
         println!("  target:  {}", sub.structure);
         println!("  input:   {}", slice_start);
 
-        let n_designable = local_designable.len();
-        let n_total = sub.end - sub.start;
 
-        let pool = multi_start_hill_climb_design(
-            &slice_start,
-            &sub.structure,
-            local_designable,
-            n_starts,
-            max_steps,
-            wobble_frequency,
-            if_slices,
-            false,
-        );
+        if local_designable.is_empty() {
+            println!(
+                "[slice {}/{}] range=[{}, {}] — no designable positions, skipping",
+                idx + 1,
+                slices.len(),
+                sub.start,
+                sub.end
+            );
+            continue;
+        }
 
-        let mut best = pool
+        
+
+        let mut best = if local_designable.is_empty() {
+            bp_distance_to_target(&slice_start, &sub.structure)
+        } else {
+            multi_start_hill_climb_design(
+                &slice_start, &sub.structure, local_designable.clone(),
+                n_starts, max_steps, wobble_frequency, if_slices, false,
+            )
             .into_iter()
             .min_by_key(|r| r.bp_distance)
-            .ok_or_else(|| format!("slice {} returned empty pool", idx))?;
+            .ok_or_else(|| format!("slice {} returned empty pool", idx))?
+        };
 
         const MAX_REFINE_ROUNDS: usize = 25;
         const MAX_STALLED_ROUNDS: usize = 5;
@@ -1661,7 +1724,10 @@ pub fn decomposed_hill_climb_design(
             }
             
             
-            let remaining: Vec<usize> = identify_mismatches(&best.structure, &sub.structure);
+            let remaining: Vec<usize> = identify_mismatches(&best.structure, &sub.structure)
+                .into_iter()
+                .filter(|p| refine_set.contains(p))
+                .collect();
                 
 
             if remaining.is_empty() {
@@ -1728,7 +1794,15 @@ pub fn decomposed_hill_climb_design(
             ));
         }
 
-        seq[sub.start..sub.end].copy_from_slice(designed_bytes);
+        seq[sub.start..sub.end].copy_from_slice(best.sequence.as_bytes());
+
+        unresolved.retain(|&g| g < sub.start || g >= sub.end);
+        for p in identify_mismatches(&best.structure, &sub.structure) {
+            unresolved.insert(p + sub.start);
+        }
+
+
+            
     }
 
     let mut rng = rand::rng();
@@ -1778,114 +1852,63 @@ pub fn decomposed_hill_climb_design(
     let full_seq = full_seq_chars.into_iter().collect::<String>();
 
     println!("Proceeding to global check");
-    let pre_repair_result = bp_distance_to_target(&full_seq, target);
 
-    let full_seq = if pre_repair_result.bp_distance > 0 {
-        let mismatched_positions: Vec<usize> = if RIBOSOMAL_RNA {
-            identify_mismatches(&pre_repair_result.structure, target)
-                .into_iter()
-                .filter(|&g| ribo_set.contains(&g))
-                .collect()
-        } else {
-            identify_mismatches(&pre_repair_result.structure, target)
-        };
-        println!(
-            "attempting global repair via multi_start_hill_climb_design, bp_distance={}, {} mismatched positions",
-            pre_repair_result.bp_distance,
-            mismatched_positions.len()
-        );
+        let global_designable_set: HashSet<usize> =
+            global_designable.iter().copied().collect();
 
-        let repair_max_steps: i64 =
-            if ((pre_repair_result.bp_distance as f64 / 0.008).round() as i64) < 100 {
-                (pre_repair_result.bp_distance as f64 / 0.008).round() as i64
-            } else {
-                100
-            };
-        println!(
-            "Max number of iterations for global repair: {}",
-            repair_max_steps
-        );
+        let pre_repair_result = bp_distance_to_target(&full_seq, target);
 
-        let if_slices: bool = false;
+        
+        let mut global_repair_pool: Vec<DesignResult> = vec![pre_repair_result.clone()];
 
-        let repair_pool = multi_start_hill_climb_design(
-            &full_seq,
-            target,
-            mismatched_positions,
-            n_starts,
-            repair_max_steps,
-            wobble_frequency,
-            if_slices,
-            false,
-        );
-
-        match repair_pool.into_iter().min_by_key(|r| r.bp_distance) {
-            Some(repaired) if repaired.bp_distance < pre_repair_result.bp_distance => {
-                println!(
-                    "global repair improved: {} -> {}",
-                    pre_repair_result.bp_distance, repaired.bp_distance
-                );
-                repaired.sequence
-            }
-            _ => {
-                println!("global repair made no improvement, keeping pre-repair sequence");
-                full_seq
-            }
-        }
-    } else {
-        full_seq
-    };
-
-    
-    let final_check_result = bp_distance_to_target(&full_seq, target);
-    let mut first_focused_repair_pool: Vec<DesignResult> = Vec::new();
-    let full_seq = if final_check_result.bp_distance > 0 {
-        let remaining_mismatches: Vec<usize> = if RIBOSOMAL_RNA {
-            identify_mismatches(&final_check_result.structure, target)
-                .into_iter()
-                .filter(|&g| ribo_set.contains(&g))
-                .collect()
-        } else {
-            identify_mismatches(&final_check_result.structure, target)
-        };
-
-        if remaining_mismatches.is_empty() {
-            full_seq
-        } else {
-            
-            let final_repair_max_steps: i64 =
-                ((final_check_result.bp_distance as f64 / 0.008).round() as i64)
+        let full_seq = if pre_repair_result.bp_distance > 0 {
+            let repair_max_steps: i64 =
+                ((pre_repair_result.bp_distance as f64 / 0.008).round() as i64)
                     .clamp(1, 100);
 
             println!(
-                "attempting final focused global repair via multi_start_hill_climb_design, \
-                 bp_distance={}, {} remaining mismatched positions, max_steps={}",
-                final_check_result.bp_distance,
-                remaining_mismatches.len(),
-                final_repair_max_steps
+                "attempting global repair via multi_start_hill_climb_design, \
+                bp_distance={}, global designable positions={}, max_steps={}",
+                pre_repair_result.bp_distance,
+                global_designable.len(),
+                repair_max_steps
             );
 
-            let if_slices = false;
-
-            first_focused_repair_pool = multi_start_hill_climb_design(
+            
+            let mut repair_pool = multi_start_hill_climb_design(
                 &full_seq,
                 target,
-                remaining_mismatches,
+                global_designable.clone(),
                 n_starts,
-                final_repair_max_steps,
+                repair_max_steps,
                 wobble_frequency,
-                if_slices,
-                true,
+                false,
+                false,
             );
 
-            match first_focused_repair_pool
-                .iter()
-                .min_by_key(|r| r.bp_distance)
-            {
-                Some(repaired) if repaired.bp_distance < final_check_result.bp_distance => {
+            
+            repair_pool.push(pre_repair_result.clone());
+
+            
+            repair_pool.sort_by(|a, b| {
+                a.bp_distance
+                    .cmp(&b.bp_distance)
+                    .then_with(|| a.sequence.cmp(&b.sequence))
+            });
+
+            repair_pool.dedup_by(|a, b| a.sequence == b.sequence);
+
+            
+            const MAX_GLOBAL_REPAIR_SEEDS: usize = 16;
+            repair_pool.truncate(MAX_GLOBAL_REPAIR_SEEDS);
+
+            global_repair_pool = repair_pool;
+
+            match global_repair_pool.iter().min_by_key(|r| r.bp_distance) {
+                Some(repaired) if repaired.bp_distance < pre_repair_result.bp_distance => {
                     println!(
-                        "final focused global repair improved: {} -> {}",
-                        final_check_result.bp_distance,
+                        "global repair improved: {} -> {}",
+                        pre_repair_result.bp_distance,
                         repaired.bp_distance
                     );
 
@@ -1893,50 +1916,106 @@ pub fn decomposed_hill_climb_design(
                 }
                 _ => {
                     println!(
-                        "final focused global repair made no improvement, keeping current sequence"
+                        "global repair made no improvement, keeping pre-repair sequence"
                     );
+
                     full_seq
                 }
             }
-        }
-    } else {
-        full_seq
-    };
-
-    let final_check_result = bp_distance_to_target(&full_seq, target);
-
-    let full_seq = if final_check_result.bp_distance > 0 {
-        let remaining_mismatches: Vec<usize> = if RIBOSOMAL_RNA {
-            identify_mismatches(&final_check_result.structure, target)
-                .into_iter()
-                .filter(|&g| ribo_set.contains(&g))
-                .collect()
         } else {
-            identify_mismatches(&final_check_result.structure, target)
+            full_seq
         };
 
-        if remaining_mismatches.is_empty() {
-            full_seq
-        } else {
+        let first_focused_check = bp_distance_to_target(&full_seq, target);
+
+       
+        let mut first_focused_repair_pool: Vec<DesignResult> = vec![first_focused_check.clone()];
+
+        if first_focused_check.bp_distance > 0 {
+            let first_focused_max_steps: i64 =
+                ((first_focused_check.bp_distance as f64 / 0.008).round() as i64)
+                    .clamp(1, 100);
+
+            println!(
+                "attempting first focused global repair from {} global-pool candidates",
+                global_repair_pool.len()
+            );
+
             
+            let mut focused_pool: Vec<DesignResult> = global_repair_pool
+                .par_iter()
+                .flat_map_iter(|seed_result| {
+                    hill_climb_design(
+                        &seed_result.sequence,
+                        target,
+                        global_designable.clone(),
+                        first_focused_max_steps,
+                        wobble_frequency,
+                        1,
+                        1.0,
+                        0.99,
+                        100,
+                        1.0,
+                        false,
+                        true,
+                    )
+                    .into_iter()
+                })
+                .collect();
+
+            
+            focused_pool.push(first_focused_check.clone());
+
+            focused_pool.sort_by(|a, b| {
+                a.bp_distance
+                    .cmp(&b.bp_distance)
+                    .then_with(|| a.sequence.cmp(&b.sequence))
+            });
+
+            focused_pool.dedup_by(|a, b| a.sequence == b.sequence);
+
+            const MAX_FIRST_FOCUSED_SEEDS: usize = 16;
+            focused_pool.truncate(MAX_FIRST_FOCUSED_SEEDS);
+
+            first_focused_repair_pool = focused_pool;
+        }
+
+        let full_seq = match first_focused_repair_pool
+            .iter()
+            .min_by_key(|r| r.bp_distance)
+        {
+            Some(repaired) if repaired.bp_distance < first_focused_check.bp_distance => {
+                println!(
+                    "first focused global repair improved: {} -> {}",
+                    first_focused_check.bp_distance,
+                    repaired.bp_distance
+                );
+
+                repaired.sequence.clone()
+            }
+            _ => {
+                println!(
+                    "first focused global repair made no improvement, keeping current sequence"
+                );
+
+                full_seq
+            }
+        };
+
+        let final_check_result = bp_distance_to_target(&full_seq, target);
+
+       
+        let full_seq = if final_check_result.bp_distance > 0 {
             let final_repair_max_steps: i64 =
                 ((final_check_result.bp_distance as f64 / 0.008).round() as i64)
                     .clamp(1, 100);
 
-            println!(
-                "attempting a second final focused global repair via multi_start_hill_climb_design, \
-                 bp_distance={}, {} remaining mismatched positions, max_steps={}",
-                final_check_result.bp_distance,
-                remaining_mismatches.len(),
-                final_repair_max_steps
-            );
-
-            
-
             let initial_temp: f64 = 1.0;
             let final_temp: f64 = 0.01;
+
             let cooling_rate: f64 =
-                (final_temp / initial_temp).powf(1.0 / final_repair_max_steps as f64);
+                (final_temp / initial_temp)
+                    .powf(1.0 / final_repair_max_steps as f64);
 
             
             let mut repair_seeds: Vec<String> = first_focused_repair_pool
@@ -1946,32 +2025,26 @@ pub fn decomposed_hill_climb_design(
 
             repair_seeds.push(full_seq.clone());
 
-            
             repair_seeds.sort_unstable();
             repair_seeds.dedup();
 
             println!(
-                "running focused repair for {} pool sequences in parallel",
+                "running final mismatch-only repair for {} pool sequences in parallel",
                 repair_seeds.len()
             );
 
-            
             let final_repair_pool: Vec<DesignResult> = repair_seeds
                 .par_iter()
                 .flat_map_iter(|seed| {
-                    
                     let seed_result = bp_distance_to_target(seed, target);
 
-                    let seed_mismatches: Vec<usize> = if RIBOSOMAL_RNA {
+                   
+                    let seed_mismatches: Vec<usize> =
                         identify_mismatches(&seed_result.structure, target)
                             .into_iter()
-                            .filter(|&position| ribo_set.contains(&position))
-                            .collect()
-                    } else {
-                        identify_mismatches(&seed_result.structure, target)
-                    };
+                            .filter(|position| global_designable_set.contains(position))
+                            .collect();
 
-                    
                     if seed_mismatches.is_empty() {
                         return vec![seed_result].into_iter();
                     }
@@ -1982,43 +2055,48 @@ pub fn decomposed_hill_climb_design(
                         seed_mismatches,
                         final_repair_max_steps,
                         wobble_frequency,
-                        1,       
+                        1,
                         initial_temp,
                         cooling_rate,
-                        100,     
-                        1.0,     
-                        false,   
-                        true,    
+                        100,
+                        1.0,
+                        false,
+                        true,
                     )
                     .into_iter()
-                }).collect();
+                })
+                .collect();
 
             match final_repair_pool.into_iter().min_by_key(|r| r.bp_distance) {
                 Some(repaired) if repaired.bp_distance < final_check_result.bp_distance => {
                     println!(
-                        "the second final focused global repair improved: {} -> {}",
+                        "final mismatch-only repair improved: {} -> {}",
                         final_check_result.bp_distance,
                         repaired.bp_distance
                     );
+
                     repaired.sequence
                 }
                 _ => {
                     println!(
-                        "the second final focused global repair made no improvement, keeping current sequence"
+                        "final mismatch-only repair made no improvement, keeping current sequence"
                     );
+
                     full_seq
                 }
             }
-        }
-    } else {
-        full_seq
-    };
+        } else {
+            full_seq
+        };
+
+    
+
 
     let full_seq = if RIBOSOMAL_RNA || GC_TEST {
         println!("Skipping GC cleanup");
         full_seq
     } else {
-        gc_cleanup(&full_seq, start_seq, target, GC_THRESHOLD)
+        gc_cleanup(&diversify_sequence(&full_seq, start_seq, target, GC_THRESHOLD), start_seq, target, GC_THRESHOLD)
     };
 
     let result = bp_distance_to_target(&full_seq, target);
@@ -3165,29 +3243,35 @@ fn gc_cleanup(
 
         let mut options = [(b'A', b'U'), (b'U', b'A')];
         options.shuffle(&mut rng);
+        let (div_nested, div_pk) = ensemble_diversity(&seq_in, target);
+        let ensemble_diversity_score = div_nested + div_pk;
+        let mut current_div = ensemble_diversity_score;
 
         let mut best_trial: Option<(Vec<u8>, DesignResult)> = None;
         for (left, right) in options {
             let mut trial = seq.clone();
             trial[i] = left;
             trial[j] = right;
-
+            let (div_nested, div_pk) = ensemble_diversity(&seq_in, target);
+            let ensemble_diversity_score = div_nested + div_pk;
             let trial_result =
                 bp_distance_to_target(&String::from_utf8(trial.clone()).unwrap(), target);
             if trial_result.bp_distance > current_dist {
                 continue;
+                
             }
 
             let replace_best = match &best_trial {
                 None => true,
                 Some((_, b)) => {
-                    trial_result.bp_distance < b.bp_distance
+                    trial_result.bp_distance < b.bp_distance && ensemble_diversity_score < current_div
                         || (trial_result.bp_distance == b.bp_distance
-                            && trial_result.mfe < b.mfe)
+                            && trial_result.mfe < b.mfe) && ensemble_diversity_score < current_div
                 }
             };
             if replace_best {
                 best_trial = Some((trial, trial_result));
+                current_div = ensemble_diversity_score;
             }
         }
 
@@ -3207,6 +3291,100 @@ fn gc_cleanup(
 
     String::from_utf8(seq).expect("sequence must be valid UTF-8")
 }
+
+fn diversify_sequence(
+    seq_in: &str,
+    original_annotation: &str,
+    target: &str,
+    min_gc_percent: f64,
+) -> String {
+    assert_eq!(seq_in.len(), original_annotation.len());
+    assert_eq!(seq_in.len(), target.len());
+
+    let pair_map = get_pair_map(target);
+    let annotation = original_annotation.as_bytes();
+    let mut seq: Vec<u8> = seq_in.as_bytes().to_vec();
+    let mut rng = rand::rng();
+
+    let current_result =
+        bp_distance_to_target(&String::from_utf8(seq.clone()).unwrap(), target);
+    let mut current_dist = current_result.bp_distance;
+
+    
+    let mut pairs: Vec<(usize, usize)> = pair_map
+        .iter()
+        .filter_map(|(&i, &j)| (i < j).then_some((i, j)))
+        .filter(|&(i, j)| annotation[i] == b'N' && annotation[j] == b'N')
+        .filter(|&(i, j)| matches!((seq[i], seq[j]), (b'G', b'C') | (b'C', b'G') | (b'A', b'U') | (b'U', b'A')))
+        .collect();
+    pairs.sort_unstable();
+    pairs.dedup();
+
+    
+    pairs.shuffle(&mut rng);
+
+    
+    let step = 200.0 / seq.len() as f64;
+    let mut gc = gc_content(&String::from_utf8(seq.clone()).unwrap()).unwrap_or(0.0);
+
+    
+
+    for &(i, j) in &pairs {
+        
+        if gc - step < min_gc_percent {
+            break;
+        }
+
+        let mut options = [(b'A', b'U'), (b'U', b'A') , (b'G', b'C') , (b'C', b'G')];
+        options.shuffle(&mut rng);
+        let (div_nested, div_pk) = ensemble_diversity(&seq_in, target);
+        let ensemble_diversity_score = div_nested + div_pk;
+        let mut current_div = ensemble_diversity_score;
+
+        let mut best_trial: Option<(Vec<u8>, DesignResult)> = None;
+        for (left, right) in options {
+            let mut trial = seq.clone();
+            trial[i] = left;
+            trial[j] = right;
+            let (div_nested, div_pk) = ensemble_diversity(&seq_in, target);
+            let ensemble_diversity_score = div_nested + div_pk;
+            let trial_result =
+                bp_distance_to_target(&String::from_utf8(trial.clone()).unwrap(), target);
+            if trial_result.bp_distance > current_dist {
+                continue;
+                
+            }
+
+            let replace_best = match &best_trial {
+                None => true,
+                Some((_, b)) => {
+                    trial_result.bp_distance < b.bp_distance && ensemble_diversity_score < current_div
+                        || (trial_result.bp_distance == b.bp_distance
+                            && trial_result.mfe < b.mfe) && ensemble_diversity_score < current_div
+                }
+            };
+            if replace_best {
+                best_trial = Some((trial, trial_result));
+                current_div = ensemble_diversity_score;
+            }
+        }
+
+        if let Some((trial, trial_result)) = best_trial {
+            seq = trial;
+            current_dist = trial_result.bp_distance;
+            //current_result = trial_result;
+            gc -= step;
+            
+        }
+    }
+
+    
+
+    String::from_utf8(seq).expect("sequence must be valid UTF-8")
+}
+
+
+
 fn ensemble_diversity(seq: &str, target: &str) -> (f64, f64) {
     let n = seq.len();
     let seq_b = seq.as_bytes();
@@ -3315,4 +3493,55 @@ fn reduce_positions_by_mismatch_proximity(
 }
 
 
+fn expand_positions_near_mismatches(
+    current_structure: &str,
+    target_structure: &str,
+    current_active_positions: &[usize],
+    original_designable_positions: &HashSet<usize>,
+    pair_map: &HashMap<usize, usize>,
+    radius: usize,
+) -> Vec<usize> {
+    let current_bytes = current_structure.as_bytes();
+    let target_bytes = target_structure.as_bytes();
+    let sequence_length = target_bytes.len();
 
+    assert_eq!(
+        current_bytes.len(),
+        sequence_length,
+        "Current structure and target structure must have equal lengths"
+    );
+
+    let mut expanded: HashSet<usize> =
+        current_active_positions.iter().copied().collect();
+
+    let mut add_neighborhood = |center: usize| {
+        let start = center.saturating_sub(radius);
+        let end = (center + radius).min(sequence_length.saturating_sub(1));
+
+        for position in start..=end {
+            if original_designable_positions.contains(&position) {
+                expanded.insert(position);
+            }
+        }
+    };
+
+    for position in 0..sequence_length {
+        if current_bytes[position] == target_bytes[position] {
+            continue;
+        }
+
+        // Add mismatch position plus adjacent designable positions.
+        add_neighborhood(position);
+
+        // Add target-paired partner plus its adjacent designable positions.
+        if let Some(&partner) = pair_map.get(&position) {
+            add_neighborhood(partner);
+        }
+    }
+
+    let mut expanded_positions: Vec<usize> =
+        expanded.into_iter().collect();
+
+    expanded_positions.sort_unstable();
+    expanded_positions
+}
