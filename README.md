@@ -1,4 +1,4 @@
-## Experimental pre-release
+## Experimental pre-release -> README.md is not up to date yet
 
 This release introduces parallel focused repair based on the complete
 candidate pool from the preceding multi-start repair stage.
