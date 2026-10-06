@@ -1,4 +1,4 @@
 -r common.txt
 
-torch==2.2.2
+torch<=2.10.0
 ViennaRNA==2.7.2
