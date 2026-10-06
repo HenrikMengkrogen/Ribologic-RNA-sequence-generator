@@ -13,6 +13,63 @@
 #   3. Clone this repository and run:
 #        ./setup.sh
 
+
+
+set -e
+
+echo "Setting up Ribologic Python 3.12 environment..."
+
+# Check that Python 3.12 is installed
+if ! command -v python3.12 &> /dev/null; then
+    echo "ERROR: Python 3.12 is required but was not found."
+    echo "Please install Python 3.12 and try again."
+    exit 1
+fi
+
+PYTHON=python3.12
+
+echo "Using:"
+$PYTHON --version
+
+# Create virtual environment
+if [ ! -d ".venv" ]; then
+    echo "Creating Python 3.12 virtual environment..."
+    $PYTHON -m venv .venv
+else
+    echo ".venv already exists."
+
+    # Verify that the existing environment uses Python 3.12
+    VENV_VERSION=$(./.venv/bin/python --version)
+
+    if [[ "$VENV_VERSION" != Python\ 3.12* ]]; then
+        echo "ERROR: Existing .venv is not using Python 3.12."
+        echo "Found: $VENV_VERSION"
+        echo "Remove .venv and run this script again."
+        exit 1
+    fi
+fi
+
+# Activate environment
+source .venv/bin/activate
+
+echo "Installing dependencies..."
+
+python -m pip install -r requirements.txt
+
+echo ""
+echo "===================================="
+echo "Ribologic environment ready!"
+echo "===================================="
+echo ""
+echo "Python:"
+python --version
+echo ""
+echo "Installed packages:"
+python -m pip list
+echo ""
+echo "Activate with:"
+echo "source .venv/bin/activate"
+
 set -euo pipefail
 
 GREEN='\033[0;32m'
