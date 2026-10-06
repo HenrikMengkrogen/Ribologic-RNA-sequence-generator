@@ -203,6 +203,10 @@ pub fn ensemble_diversity(seq: &str, target: &str) -> (f64, f64) {
         assert!(!fc.is_null(), "fold_compound returned null");
 
         let mut pf_struct: Vec<i8> = vec![0i8; n + 1];
+        
+        
+
+
         let _ = vrna_pf(fc, pf_struct.as_mut_ptr());
 
         let exp_matrices = (*fc).exp_matrices;

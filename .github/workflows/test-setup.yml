@@ -53,6 +53,9 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
+          chmod +x ./setup_enviroment.sh
+          ./setup_enviroment.sh
+          
           chmod +x ./setup.sh
           source ./setup.sh
 
@@ -72,6 +75,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
+          chmod +x ./setup_enviroment.sh
+          source ./setup_enviroment.sh
+
           chmod +x ./setup.sh
           source ./setup.sh
 

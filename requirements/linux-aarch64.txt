@@ -1,0 +1,4 @@
+-r common.txt
+
+torch==2.2.2
+ViennaRNA==2.7.2
