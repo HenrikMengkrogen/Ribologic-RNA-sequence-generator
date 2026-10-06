@@ -16,7 +16,7 @@ bindgen = "0.72"
 
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = "symbols"

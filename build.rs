@@ -15,8 +15,6 @@ fn main() {
 
     let target = env::var("TARGET").expect("TARGET is not set by Cargo");
 
-    
-
     let target_os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS is not set");
 
     let prefix = manifest_dir.join("vendor").join("RNAlib");
@@ -132,13 +130,13 @@ fn main() {
             println!("cargo:rustc-link-lib=z");
 
             /*
-            * Add this only if your macOS libRNA.a was built with OpenMP:
-            *
-            * println!("cargo:rustc-link-lib=omp");
-            *
-            * Note: libomp is not normally included with macOS itself; it is
-            * commonly installed through Homebrew (`brew install libomp`).
-            */
+             * Add this only if your macOS libRNA.a was built with OpenMP:
+             *
+             * println!("cargo:rustc-link-lib=omp");
+             *
+             * Note: libomp is not normally included with macOS itself; it is
+             * commonly installed through Homebrew (`brew install libomp`).
+             */
         }
 
         "linux" => {

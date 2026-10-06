@@ -1,0 +1,9 @@
+Sequence: AAAUUAUUGGGCUCAGAAGAUUAGUAGUCUACCGUAAAGAUUUCGAUCUUUAUGCCGUGCGAGACGGUCGGGUCCAUAGCUAAUUCGUUAGUUAUGUCGAGUAGAGUGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCGUAGACUACUAAUCUUCUGAGUCGACUGAAGGAGGCACGGUCGGCCAUCCGUUUCGACGGGUGGCCCAAUAAUUU
+Structure: (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.........(((((((((((....)))))))))..))............)))))))))(((((((.........)))))))))))))))))))))))))))))((((((.........))))))(((((((((....)))))))))))))))))))
+
+Sequence: AGUAUCCUUCCUUUACAGUUUUAUGAUAAUACGCGUCUAUUUUCGAAUAGACGCCCGUGCGAGACGGUCGGGUCCAUAGCUAAUUCGUUAGUUAUGUCGAGUAGAGUGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCGUAUUAUCAUAAAACUGUAAAGCGACUGAAGGAGGCACGGUCGGCCAUCCGUUUCGACGGGUGGCGAAGGAUACU
+Structure: (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.........(((((((((((....)))))))))..))............)))))))))(((((((.........)))))))))))))))))))))))))))))((((((.........))))))(((((((((....)))))))))))))))))))
+
+Sequence: CCUUCCCUCCCCUUUUUUUUAAUGAUAUUAACGAAAAUUCUUUCGAGAAUUUUCCCGUGCGAGACGGUCGGGUCCAUAGCUAAUUCGUUAGUUAUGUCGAGUAGAGUGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCGUUAAUAUCAUUAAAAAAAAGGCGACUGAAGGAGGCACGGUCGGCCAUCCGUUUCGACGGGUGGCGGAGGGAAGG
+Structure: (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.........(((((((((((....)))))))))..))............)))))))))(((((((.........)))))))))))))))))))))))))))))((((((.........))))))(((((((((....)))))))))))))))))))
+
