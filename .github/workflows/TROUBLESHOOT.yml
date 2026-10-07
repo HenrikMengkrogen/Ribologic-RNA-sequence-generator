@@ -110,9 +110,8 @@ jobs:
           chmod +x ./setup.sh
           source ./setup.sh
 
-          # Native Windows Python puts the venv's activate script in Scripts/, not bin/
-          source .venv/Scripts/activate
-          python --version
+          export PATH="$(cygpath -u "$USERPROFILE")/.cargo/bin:$PATH"
+          cargo --version
 
           cargo test --locked --target "${{ matrix.target }}"
           cargo build -vv --locked --target "${{ matrix.target }}"
