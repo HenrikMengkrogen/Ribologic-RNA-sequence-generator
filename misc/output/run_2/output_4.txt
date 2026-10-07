@@ -1,10 +1,10 @@
-==== FINAL (run 3) ====
-sequence      : AAAUUAGUUGCGGCUAGCAUGGUUCGCCGUGCUGGCCCUAUGCGUCCGUUCGCGGACGUAUAGCAGGAUCAACGAUCUAGAUCUUGGUAACUAGUUUCGGGUUUCUUCGUUAUCGAAAGAUCGACGGUAACCUGGAAGAUGCUUCGGCAUUUUCCAGUCGUGUUUAGAUUCGUCUGAACGCGAGAAGGAACCCG
+==== FINAL (run 2) ====
+sequence      : AGGUUCUACACGGCUUAAGGCUUUCGAGCCUUGAGCCGGCUUAGGAUUUUCGAAUCCUGAGCCGGGAACGAAAUUGAGACGUUUCCGUGUAGGACCUCGCUUUGGAGGGGCUGCUAACUCAAUAAGUAGCCGGAGGAAUGCAUUCGUGCGUUCCUUCGCUAGUAUGACUUCGGUUAUAUUAGCCCUUCAAAGUG
 target        : ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
 mfe structure : ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
 bp_distance   : 0
-mfe           : -99.70
-Ensemble Diversity : 2.17
+mfe           : -102.70
+Ensemble Diversity : 2.06
 slices        : 8
 Ribosomal RNA used: false
 GC Content: 50.00%

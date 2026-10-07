@@ -159,12 +159,6 @@ pub fn write_training_data(data: &GlobalDesignResult, target_structure: &str) ->
         writeln!(file, "Sequence: {}", data.sequence)?;
         writeln!(file, "Structure: {}", target_structure)?;
         writeln!(file)?;
-        
-        let mut file = OpenOptions::new().create(true).append(true).open(positive)?;
-        let pk_free_struct = strip_pseudoknots(&data.mfe_structure);
-        writeln!(file, "Sequence: {}", data.sequence)?;
-        writeln!(file, "Structure: {}", pk_free_struct)?;
-        writeln!(file)?;
         Ok(())
     }
 

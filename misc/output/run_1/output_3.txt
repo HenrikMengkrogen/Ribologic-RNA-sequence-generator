@@ -1,10 +1,10 @@
 ==== FINAL (run 1) ====
-sequence      : CCUGCGAGAUCGUAUUAAAAUAAUAAUGAUACCCGGUCGUUUCGACGACGCUUGCAAUAAUAUAGUAAGCCGUGGACAAUCCGGAAGUCUACGCGGCGCUCGAAAGGUUUACGGGCGGAUUUCGUAGGCCUAUCCGUGGGCGGGAGCAAAAACCUAGCUCCGGUCUAGAAUCCGGAACUGGACCUCAAUAUCAAAAAUAAAGAUGUUGACGCCGGCAUUCGUGCCGUCGUAGGAAAUUUAAACCUGCGACCAUGGAUGGGUUUCCCGGCAACCUUCUUAGUUCGCUAAGAGGGUUGUCGGG
-target        : (((((((((((((((((.........))))))((((((((....)))))((((((.........))))))(((((((..[[[[[[.))))))))))((((((..[[[[[[.)))))))))))))))))(((((((((((((((((((..]]]]]].)))))(((((((..]]]]]].)))))))((((((((.........)))))))))))(((((....)))))(((((((.........))))))))))))))))))...(((((((((((((((((....)))))))))))))))))
-mfe structure : (((((((((((((((((.........))))))...(((((....)))))((((((.........))))))(((((((..[[[[[[.)))))))...((((((..[[[[[[.)))))))))))))))))(((((((((((...(((((..]]]]]].)))))(((((((..]]]]]].)))))))((((((((.........))))))))...(((((....)))))(((((((.........))))))))))))))))))...(((((((((((((((((....)))))))))))))))))
-bp_distance   : 6
-mfe           : -129.90
-Ensemble Diversity : 10.34
-slices        : 15
+sequence      : CUAAGUGCGAUUGGUCAAUCUGAAGUCGUUAAUUAACGACUUUACUCUCCAUUCGUAAUGGAGAGUCGAAUUGGAAUCCCCGUAUCCAAUUGUAACAUCCCGAUGGGUUCGGUAGCUCGUGUUACGGGGACACGAGGAAGGCAUUUACGAAGCCUUCGAUGGAAUCAAAUGAUUCCAUCCUUCCCGAGCUCGGUUUUCCGAGCUCGGGACGGUCGCGCAAUUGCGCGACCGACCGAACCCAUCGGGAUGUUACCACUCCAGAUAUAUCUGGAGUGCGAGAUUGACCAAUCGCACUUAG
+target        : ((((((((((((((((((((((((((((((....)))))))))(((((((..[[[[[[.)))))))(((((((((..[[[[[[.)))))))((((((((((((((((((((((((((((((..]]]]]].))))))((((((..]]]]]].))))))(((((((((....)))))))))))((((((((((((....))))))))))))(((((((((....)))))))))))))))))))))))))))))))(((((((((....))))))))))))))))))))))))))))))))
+mfe structure : ((((((((((((((((((((((((((((((....)))))))))(((((((..[[[[[[.)))))))..(((((((..[[[[[[.)))))))((((((((((((((((((((((..((((((..]]]]]].))))))((((((..]]]]]].))))))(((((((((....)))))))))..((((((((((((....))))))))))))(((((((((....)))))))))))))))))))))))))))))))(((((((((....)))))))))..)))))))))))))))))))))
+bp_distance   : 4
+mfe           : -197.50
+Ensemble Diversity : 15.32
+slices        : 13
 Ribosomal RNA used: false
-GC Content: 50.17%
+GC Content: 50.00%
