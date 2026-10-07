@@ -121,11 +121,11 @@ jobs:
             --retry-delay 5 \
             --connect-timeout 30 \
             --max-time 300 \
-            -o ViennaRNA-2.7.0.tar.gz \
-            https://github.com/ViennaRNA/ViennaRNA/releases/download/v2.7.0/ViennaRNA-2.7.0.tar.gz
+            -o ViennaRNA-2.7.2.tar.gz \
+            https://github.com/ViennaRNA/ViennaRNA/releases/download/v2.7.2/ViennaRNA-2.7.2.tar.gz
 
-          tar -xf ViennaRNA-2.7.0.tar.gz
-          cd ViennaRNA-2.7.0
+          tar -xf ViennaRNA-2.7.2.tar.gz
+          cd ViennaRNA-2.7.2
 
           ./configure \
             --prefix="$PREFIX" \
@@ -137,7 +137,7 @@ jobs:
 
           make -j"$(nproc)"
 
-          # Do not use `make install`: ViennaRNA 2.7.0 may attempt to
+          # Do not use `make install`: ViennaRNA 2.7.2 may attempt to
           # install optional Python files into /RNA on GitHub runners.
           # We only need the static C archive for the Rust linker.
           mkdir -p "$PREFIX/lib"
