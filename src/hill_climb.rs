@@ -530,8 +530,8 @@ pub fn hill_climb_design(
 
         const MIN_ACTIVE_POSITIONS: usize = 8;
         const STAGNATION_STEPS: i64 = 10;
-        const CLOSE_TARGET_DISTANCE: i64 = 7; // Originally 4
-        const EXPANSION_RADIUS: usize = 25; // Originally 8
+        const CLOSE_TARGET_DISTANCE: i64 = 6; // Originally 4
+        const EXPANSION_RADIUS: usize = 12; // Originally 8
 
         if step > 0 && step % 20 == 0 && current_dist > 0 {
             let stagnation_steps = step - last_improvement_step;

@@ -1,0 +1,12 @@
+Sequence: AUAAGUGCUCCUAGAGUUAAUUCAUAUGUGACGCAAUUAUAUUCGUAUAAUUGCCCGUGCGAGACGGUCGGGUCCAUAGCUAAUUCGUUAGUUAUGUCGAGUAGAGUGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCGUCACAUAUGAAUUAACUCUAGCGACUGAAGGAGGCACGGUCGGCCAUCCGUUUCGACGGGUGGCGAGCACUUAU
+Structure: (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.(.((...((((((((((((....)))))))))..)).)...))...).)))))))))(((((((..[[[[[[.)))))))))))))))))))))))))))))((((((..]]]]]].))))))(((((((((....)))))))))))))))))))
+
+Sequence: CGACAAUCUGCUGAAUUAAGUUAUGGAGCCUUAAGGCUCCAUAGCGAUACUUGCUGCAAGUAUCGCAGCCUCACUUUCCGGCCUAGUGAGGGUGCUCGAAGCCGCGAAAGCGGUUAAAAAGUAGGCCGGUCUUUUUGCGGUGAAUGCAGCACACCGUAAAAAUAGGAUAUCCUAUUUUUAACUCGCAGCUGCGUUUUCGCAGCUGCGAGGGUUCCAUCAAUAGAUGGAACCCCGCUUUCGCGGCUUCGAGCACCCAAGAGCCUUAAGGCUCUUGGCUACUUAAUUCAGCAGAUUGUCG
+Structure: ((((((((((((((((((((((((((((((....)))))))))(((((((..[[[[[[.)))))))(((((((((..[[[[[[.)))))))((((((((((((((((((((((((((((((..]]]]]].))))))((((((..]]]]]].))))))(((((((((....)))))))))))((((((((((((....))))))))))))(((((((((....)))))))))))))))))))))))))))))))(((((((((....))))))))))))))))))))))))))))))))
+
+Sequence: UACGAGUUCAGGAACGCAAUAAUUAAGUGUUCGGGCGUCCUUCGGGACGGGGGUCAAUUAUUUAGGCCCCCGAGACUAAUGCUAUAAGUUUCGCCCCCCGUUAAUUAGAUAAAUGGGCUGGACUUGUACAGAUUAUCACGGCCCAGGAAAUCUAAACCUGGCUGGGGGAAAUAGCAACCUCCAGUCGUGGCGAAAAUAUAACGCUACGAGCCACCCGUUCGCGGGUUAUGGUGAAAUAAAUACACUAUAGUGGUAAUUUGUUUCGGUUUCGGCGCACCCGUUCGCGGGUGUGCCGAGACCG
+Structure: (((((((((((((((((.........))))))((((((((....)))))((((((.........))))))(((((((..[[[[[[.))))))))))((((((..[[[[[[.)))))))))))))))))(((((((((((((((((((..]]]]]].)))))(((((((..]]]]]].)))))))((((((((.........)))))))))))(((((....)))))(((((((.........))))))))))))))))))...(((((((((((((((((....)))))))))))))))))
+
+Sequence: AGUUUGUAGCCAGUCAUAAACUAUAUUAGGAGGCAAUUUACUUCGGUAAAUUGUCCGUGCGAGACGGUCGGGUCCAUAGCUAAUUCGUUAGUUAUGUCGAGUAGAGUGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCCUCCUAAUAUAGUUUAUGACUGCGACUGAAGGAGGCACGGUCGGCCAUCCGUUUCGACGGGUGGCGCUACAAACU
+Structure: (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.(.((...((((((((((((....)))))))))..)).)...))...).)))))))))(((((((..[[[[[[.)))))))))))))))))))))))))))))((((((..]]]]]].))))))(((((((((....)))))))))))))))))))
+
