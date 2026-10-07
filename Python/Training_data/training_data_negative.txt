@@ -10,3 +10,9 @@ Structure: (((((((((((((((((.........))))))((((((((....)))))((((((.........)))))
 Sequence: AGUUUGUAGCCAGUCAUAAACUAUAUUAGGAGGCAAUUUACUUCGGUAAAUUGUCCGUGCGAGACGGUCGGGUCCAUAGCUAAUUCGUUAGUUAUGUCGAGUAGAGUGUGGGCUCGUACGGGGUGGUGAAGCCUCCACGCCACCCUCCUAAUAUAGUUUAUGACUGCGACUGAAGGAGGCACGGUCGGCCAUCCGUUUCGACGGGUGGCGCUACAAACU
 Structure: (((((((((((((((((((((((((((((((((((((((((....)))))))))(((((((((.(.((...((((((((((((....)))))))))..)).)...))...).)))))))))(((((((..[[[[[[.)))))))))))))))))))))))))))))((((((..]]]]]].))))))(((((((((....)))))))))))))))))))
 
+Sequence: AAAGGAUCCUCGGGGGUCCAUUAGGUCUCCUAAAGGAGACCUAUAGGUGGAUCGCACGACCACCUAGCACCUUAAAUGGCUCGAUUAAGGUUAUAAAGCGGAAGUCGGUUCCUGAAACCCUAACGAGCCUAGGGUUGUGUCCAACGUGCGAGGACACCGUCGUCAAAAAUUUGACGACGUCAAUCCAAGGGUCUAAAGACCCUUGGAUUUCUACUGGCUAAAGCCAGUAGAAGGAACCGACUUCCGCUUUAUAGCAACCCUGUUUACAGGGUUGCGCAUGGACCCCCGAGGAUCCUUU
+Structure: ((((((((((((((((((((((((((((((....)))))))))(((((((..[[[[[[.)))))))(((((((((..[[[[[[.)))))))((((((((((((((((((((((((((((((..]]]]]].))))))((((((..]]]]]].))))))(((((((((....)))))))))))((((((((((((....))))))))))))(((((((((....)))))))))))))))))))))))))))))))(((((((((....))))))))))))))))))))))))))))))))
+
+Sequence: UACUAUUGUUGACUUUUAAUUAAAAAAGAAGUGGCAAUAGUUCGCUAUUCGAAGUAAAAAUUAAAUUUCGGACUCACAAGCUCAGAGUGGGUCGCCGGCUCCAAAGAGCGAGGGGCCCAAUAAUGGUAGUUCCGGUCACGCGGUCGAAACGCUCUAUCGACGGCCGAUAACUGAGCAAUUGGCCUCCCUAUCAAUAAUUAAGAUGGGGACGCAUGGGUUCGCCCAUUCCGACCAAAAUAAUAGGUUGGAGUGGCCGGGACUUUGGGCGGCAGGUCGUCAGUUCGCUGACGGCCUGCUGCCC
+Structure: (((((((((((((((((.........))))))((((((((....)))))((((((.........))))))(((((((..[[[[[[.))))))))))((((((..[[[[[[.)))))))))))))))))(((((((((((((((((((..]]]]]].)))))(((((((..]]]]]].)))))))((((((((.........)))))))))))(((((....)))))(((((((.........))))))))))))))))))...(((((((((((((((((....)))))))))))))))))
+
