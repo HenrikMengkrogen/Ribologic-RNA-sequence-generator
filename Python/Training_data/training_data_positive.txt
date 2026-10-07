@@ -16,3 +16,6 @@ Structure: ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))((((((
 Sequence: CCUGGAAGUGGACUGACUGGCGUUCGCGUCAGUUAGUGUAAUAGCCUUUUCGAAGGCUGUUAUGAGGUUCAACCGAGCAGAACUUCCUACUUCUAGGCUCGUAGCCAGGUGGUUUAAGCUCGGAAAGCCACGGACUCGACAAUUCGUUGUUGAGUCCCUGGACAGAGAUUCGUCUUUGUUCAGCUGGUUACGAG
 Structure: ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
 
+Sequence: AGGCUCCCUCCCCAUGAGGAAUUUCGAUUCCUUAUGGUCCUGCGUGAUUUCGAUCACGUAGGAGAGGUCAAAAUGAAGAUGACUUCGGAGGGGGCCUUGCUCCGGGAGGAAUUCCAACUUCAUAGGGAUUCGUUUGAAUUAGUUCGCUAGUUCAAGCGCGUUCCAGCAUUCGUGUUGGGACGCCUCUCGGAGUA
+Structure: ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
+
