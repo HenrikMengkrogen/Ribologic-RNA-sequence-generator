@@ -1,4 +1,4 @@
-name: Test setup
+name: TROUBLESHOOT
 
 on:
   push:
@@ -85,28 +85,19 @@ jobs:
           chmod +x ./setup.sh
           source ./setup.sh
 
-      - name: Install valgrind
-        run: sudo apt-get update && sudo apt-get install -y valgrind
-
-      - name: Run tests
+      - name: Install valgrind, run test and build
         if: runner.os == 'Linux'
         shell: bash
-        run: cargo test --locked --target "${{ matrix.target }}"
-
-      - name: Build
-        if: runner.os == 'Linux'
-        shell: bash
-        run: cargo build -vv  --locked --target "${{ matrix.target }}"
+        run: | 
+         sudo apt-get update && sudo apt-get install -y valgrind
+         source .venv/bin/activate
+         cargo test --locked --target "${{ matrix.target }}"
+         cargo build -vv  --locked --target "${{ matrix.target }}"
             printf '1\n1\n' | valgrind --error-exitcode=1 --track-origins=yes \
           target/"${{ matrix.target }}"/debug/Ribologic-RNA-sequence-generator
+          cargo run --locked --target "${{ matrix.target }}"
 
-      - name: Run Cargo
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-         source .venv/bin/activate
-         
-         cargo run --locked --target "${{ matrix.target }}"
+      
 
       # Keep Windows in one MSYS2 process. This preserves PATH changes made
       # by setup.sh, including Cargo's Windows install directory.
