@@ -28,7 +28,8 @@ pub fn mutate_seq(
     let paired_nucleotides: &[char] = if GC_TEST || last_global {
         &['G', 'C']
     } else {
-        &['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
+        //&['A', 'U', 'G', 'G', 'G', 'C', 'C', 'C', 'G', 'C']
+        &['A', 'U', 'C', 'G']
     };
 
     let purines: &[char] = if GC_TEST { &['G', 'C'] } else { &['A', 'U'] };

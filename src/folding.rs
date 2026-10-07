@@ -24,7 +24,7 @@ pub fn bp_distance_to_target(seq: &str, target: &str) -> DesignResult {
         md.temperature = 37.0;
         md.dangles = 1;
 
-        md.max_bp_span = (max_span + 30) as i32;
+        //md.max_bp_span = (max_span + 30) as i32;
 
         let seq_bytes = seq.as_bytes();
         let target_bytes = target_no_pk.as_bytes();
