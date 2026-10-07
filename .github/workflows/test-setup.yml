@@ -73,7 +73,9 @@ jobs:
       - name: Run Cargo
         if: runner.os != 'Windows'
         shell: bash
-        run: cargo run --locked --target "${{ matrix.target }}"
+        run: |
+         source .venv/bin/activate
+         cargo run --locked --target "${{ matrix.target }}"
 
       # Keep Windows in one MSYS2 process. This preserves PATH changes made
       # by setup.sh, including Cargo's Windows install directory.
@@ -85,6 +87,7 @@ jobs:
           chmod +x ./setup.sh
           source ./setup.sh
 
+          source .venv/bin/activate
           cargo test --locked --target "${{ matrix.target }}"
           cargo build --locked --target "${{ matrix.target }}"
           cargo run --locked --target "${{ matrix.target }}"
