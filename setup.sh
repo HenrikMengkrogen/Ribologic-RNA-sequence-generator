@@ -65,6 +65,10 @@ case "$OS-$ARCH" in
         REQUIREMENTS="requirements/linux-aarch64.txt"
         ;;
 
+    MINGW64*-x86_64)
+       REQUIREMENTS="requirements/windows-x86_64.txt"
+       ;;
+
     *)
         echo "ERROR: Unsupported platform: $OS-$ARCH"
         exit 1
@@ -97,7 +101,11 @@ fi
 # Activate environment
 # --------------------------------------------------
 
-source .venv/bin/activate
+   if [ -f .venv/Scripts/activate ]; then
+       source .venv/Scripts/activate
+   else
+       source .venv/bin/activate
+   fi
 
 
 # --------------------------------------------------

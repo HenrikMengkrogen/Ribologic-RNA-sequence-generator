@@ -13,7 +13,7 @@ pub fn call_model(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     let project_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    let python = project_dir.join(".venv").join("bin").join("python");
+    let python = venv_python(&project_dir);
     let script = project_dir.join("Python").join("RUN_MODEL.py");
     let input = project_dir.join(input_file);
     let output = project_dir.join("Python").join("seeds.txt");
@@ -95,7 +95,7 @@ pub fn import_seed_sequences(seed_file: &Path) -> Result<Vec<String>, Box<dyn st
 pub fn train_model() -> Result<(), Box<dyn std::error::Error>> {
     let project_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    let python = project_dir.join(".venv").join("bin").join("python");
+    let python = venv_python(&project_dir);
     let script = project_dir.join("Python").join("train_model.py");
 
     if !python.exists() {
@@ -134,7 +134,7 @@ pub fn pretrain_ml_model(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let project_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-    let python = project_dir.join(".venv").join("bin").join("python");
+    let python = venv_python(&project_dir);
     let script = project_dir.join("Python").join("train_model.py");
 
     eprintln!("Pretrain Python: {}", python.display());
@@ -176,4 +176,14 @@ pub fn pretrain_ml_model(
     }
 
     Ok(())
+}
+
+
+
+fn venv_python(project_dir: &Path) -> PathBuf {
+    if cfg!(windows) {
+        project_dir.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        project_dir.join(".venv").join("bin").join("python")
+    }
 }
