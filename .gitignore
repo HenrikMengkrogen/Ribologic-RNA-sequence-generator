@@ -3,3 +3,5 @@
 *.lo
 *.dylib
 .DS_Store
+.venv/
+__pycache__/
