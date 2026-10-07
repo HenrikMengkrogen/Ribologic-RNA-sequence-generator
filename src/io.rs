@@ -4,7 +4,6 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use crate::types::GlobalDesignResult;
-use crate::structure::strip_pseudoknots;
 
 pub fn read_input_file(path: &str) -> Result<(String, String), std::io::Error> {
     let content = fs::read_to_string(path)?;
