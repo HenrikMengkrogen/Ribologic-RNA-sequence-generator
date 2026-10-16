@@ -53,14 +53,14 @@ pub fn hill_climb_design(
 
     let hard_loops = find_hard_loops(&target_structure);
 
-    let dist_threshold = if hard_loops {
-        dist_threshold.max(0) + 2
+    let dist_threshold = if if_slices {
+        ((n_fixed as f64) / 12.0).ceil() as i64
     } else {
         dist_threshold.max(0)
     };
 
-    let p_threshold: f64 = if fixed_fraction > 0.6 && !last_global {
-        0.20
+    let p_threshold: f64 = if fixed_fraction > 0.6 && !last_global && if_slices {
+        0.25
     } else if hard_loops && !last_global {
         0.25
     } else {

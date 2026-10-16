@@ -1,0 +1,30 @@
+Sequence: ACCGACGUGUGAUACAGUGAGGUAAAUAGGCGCUUAUGGAUCCAUCGCGAAAGGGUCCAUGAGCGCUUAUUUAUCUCUCACACUAGCUGUCGAGUAGAGUGUGGGCUCCGUUUGAUCGCGAAACAAGCGGAGACGGUCGGGUCCAGCUGGUGUGUCUGUAUUACACGUUGGUGUUCUUUGAUCGCGAAACAAGGAAC
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: CGGUCCAAUUUGGACACUGAAGAAAAAUUGACUCGUAGAAGAGAUCGCGAAACUUUUCUAUGAGUCGAUUUUUUUUCUGAACAGUGCUGUCGAGUAGAGUGUGGGCUCCGGUGGAUCGCGAAACCAUCGGAGACGGUCGGGUCCAGCAUUGUUCUGUGUCCGAAUUGGGCCGGGGUGCACAUCGCGAAAGUGUACCC
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GAGGACCUGGGGUAAUAUGAAUAAAUGCUCAGUAGCCUCCGACAUCGCGAAAGUUGGAGGUUACUGGGCAUUUGUUCUGUCCAUACCUGUCGAGUAGAGUGUGGGCUCCUUCAAAUCGCGAAAUUGGAGGAGACGGUCGGGUCCAGGUGUGGACUUAUUACUCCAGGUUCUCGACCUAUCAUCGCGAAAGAUGGGUC
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GUCGAUCACAGUUUAACUGCCGAGCGGGGGAUUUUAUAGUUUCAUCGCGAAAGAGACUAUGAAAUCUCCCGCUUGGCUACUACUUUCUGUCGAGUAGAGUGUGGGCUCCCGGCGAUCGCGAAACGCUGGGAGACGGUCGGGUCCAGAAGGUAGUUGUUAAAUUGUGAUUGACCAAGGACCAUCGCGAAAGGUUCUUG
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GCUGAGUUGGGUGGUUGUAUCGUUGAGAGCCGAUGGAUUAUACAUCGCGAAAGUGUAAUCUAUCGGUUCUCAAUGAUUAACUAGGCCUGUCGAGUAGAGUGUGGGCUCCGUUUCAUCGCGAAAGAAGCGGAGACGGUCGGGUCCAGGCUUAGUUUCAACCAUCCAACUUAGCCUGGGCACAUCGCGAAAGUGUCCAG
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GAUUACUGGCGGAGAGAUCAAGUGUCACGAAAGGUCGAUCUUCAUCGCGAAAGAGGAUCGGCCUUUUGUGACAUUUGUUAAAUGCACUGUCGAGUAGAGUGUGGGCUCCUGUGCAUCGCGAAAGCAUAGGAGACGGUCGGGUCCAGUGUAUUUAUUCUCUCUGCCAGUGAUCGGACGUGCAUCGCGAAAGCAUGUCC
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GUAUAUGGUCUUUCCUUUAAAGGAAAUUUUUCAAGCUAUAUUUAUCGCGAAAAAGUAUAGUUUGAAGAAUUUCUUUUUACUAUGACCUGUCGAGUAGAGUGUGGGCUCCGUAUUAUCGCGAAAAGUGCGGAGACGGUCGGGUCCAGGUUAUAGUUAAGGAAGGAUUAUGUAUAAGUUGUGAUCGCGAAACACGACUU
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GAGGACACAAGCGUUCCUAAUGUUUAGUGAGGCUGGAUAGGUGAUCGCGAAACAUCUAUCUAGCCUUACUAAAUAUUUGCAGCUAUCUGUCGAGUAGAGUGUGGGCUCCGUCUCAUCGCGAAAGAGGCGGAGACGGUCGGGUCCAGAUGGCUGCUGGAACGUUUGUGUUCUCGUGUGAGGAUCGCGAAACCUUACAC
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GCAUCCCGUAGCCAUUAUGAAUACGACCGAGCGAUAUAUAUUGAUCGCGAAACAGUAUAUGUCGCUUGGUCGUGUUCUCGAGUGUACUGUCGAGUAGAGUGUGGGCUCCUUUGGAUCGCGAAACCAGAGGAGACGGUCGGGUCCAGUAUACUCGUUAAUGGUUACGGGGUGCCUUGUUCCAUCGCGAAAGGAGCAAG
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+
+Sequence: GUUUAUUUGAUUAUAGCUGCUUCGUAACGGCCGCUAUCAAGCCAUCGCGAAAGGUUUGAUGGCGGCUGUUACGGAGCUUCUAAUUGCUGUCGAGUAGAGUGUGGGCUCCCUAGCAUCGCGAAAGCUGGGGAGACGGUCGGGUCCAGCAGUUAGAUGCUAUAGUCAAAUGAACCACCGUUCAUCGCGAAAGAAUGGUG
+Structure: (((((((((((((((((.(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((..((.(.((.(...(.(((((((((.........))))))))).)).)).).))))))))))))).)))))))))))))))))((((((((.........))))))))
+

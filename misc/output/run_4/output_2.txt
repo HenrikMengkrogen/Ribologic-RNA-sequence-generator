@@ -1,10 +1,10 @@
 ==== FINAL (run 4) ====
-sequence      : UAAGUGACAGCGCGUUACGUGUUUCGACACGUGACGCGAUUUGUCGGGUUCGCCCGACGAAUCGUUCUCAAAGAACCGAUGAGGACGCUGUCGCUUAGGGUCUCGAUGACACGAGAACGGUUCACUUGUGUUGUGCUAUCCCUUCGGGGGUAGCAUACACCGUUAGUAUUCGUAUUAAUGGUGCAUUGAGACUC
-target        : ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
-mfe structure : ((((((((((((((((((((((....)))))))))))(((((((((((....)))))))))))(((((((..[[[[[[.))))))))))))))))))((((((((((((((((((..]]]]]].)))))))(((((((((((....)))))))))))(((((((((((....))))))))))))))))))))))
+sequence      : AAUGAACCGUCAUUGAAUUCGAGCAGGUAACGAAUGGGCUGACUGUCAUCGCGAAAGAUAGUUAGUCCCGACUGCUCGGAUUUAUCAUGAUUGAUGUGUGCGUAAUGUGAAUCGCGAAAUCAUAUUAUGCACACGUCAAUUAUGUGCUGAAAUUGAGUAUUUAGGCCGAGAUCGCGAAAUUUGGCUUGAAUAUUCAGUUUCGGCUUGAUGGUUUAUUCAUGGUGGGUUUUAUCGCGAAAAAAGCCUAUCAUG
+target        : ((((((((((((.(((((((((((((....((...((((((((((((.........)))))))))))))).))))))))))))).(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((((((((((((((((.........))))))))))))))))))))))))).))))))))))))(((((((((((((.........)))))))))))))
+mfe structure : ((((((((((((.(((((((((((((....((...((((((((((((.........)))))))))))))).))))))))))))).(((((((((((((((((((((((((.........))))))))))))))))))))))))).(((((((((((((((((((((((((.........))))))))))))))))))))))))).))))))))))))(((((((((((((.........)))))))))))))
 bp_distance   : 0
-mfe           : -103.00
-Ensemble Diversity : 2.62
-slices        : 8
+mfe           : -130.80
+Ensemble Diversity : 6.31
+slices        : 7
 Ribosomal RNA used: false
-GC Content: 51.03%
+GC Content: 41.27%

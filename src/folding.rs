@@ -12,7 +12,7 @@ pub fn bp_distance_to_target(seq: &str, target: &str) -> DesignResult {
     let target_no_pk = strip_pseudoknots(target);
 
     let pair_map = get_pair_map(&target_no_pk);
-    let max_span = pair_map
+    let _max_span = pair_map
         .iter()
         .map(|(&i, &j)| i.abs_diff(j))
         .max()

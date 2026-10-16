@@ -514,8 +514,20 @@ pub fn decomposed_hill_climb_design(
 
         global_repair_pool = repair_pool;
 
-        match global_repair_pool.iter().min_by_key(|r| r.bp_distance) {
-            Some(repaired) if repaired.bp_distance < pre_repair_result.bp_distance => {
+        match global_repair_pool
+            .iter()
+            .map(|r| {
+                let (div_nested, div_pk) = ensemble_diversity(&r.sequence, target);
+                (r, div_nested + div_pk)
+            })
+            .min_by(|(a, sa), (b, sb)| {
+                a.bp_distance
+                    .cmp(&b.bp_distance)
+                    .then(sa.total_cmp(sb))
+            })
+            .map(|(r, _)| r)
+        {
+            Some(repaired) if repaired.bp_distance < pre_repair_result.bp_distance =>  {
                 println!(
                     "global repair improved: {} -> {}",
                     pre_repair_result.bp_distance, repaired.bp_distance
@@ -601,7 +613,16 @@ pub fn decomposed_hill_climb_design(
 
     let full_seq = match first_focused_repair_pool
         .iter()
-        .min_by_key(|r| r.bp_distance)
+        .map(|r| {
+            let (div_nested, div_pk) = ensemble_diversity(&r.sequence, target);
+            (r, div_nested + div_pk)
+        })
+        .min_by(|(a, sa), (b, sb)| {
+            a.bp_distance
+                .cmp(&b.bp_distance)
+                .then(sa.total_cmp(sb))
+        })
+        .map(|(r, _)| r)
     {
         Some(repaired) if repaired.bp_distance < first_focused_check.bp_distance => {
             println!(
@@ -685,19 +706,29 @@ pub fn decomposed_hill_climb_design(
             })
             .collect();
 
-        match final_repair_pool.into_iter().min_by_key(|r| r.bp_distance) {
-            Some(repaired) if repaired.bp_distance < final_check_result.bp_distance => {
+        match final_repair_pool
+            .iter()
+            .map(|r| {
+                let (div_nested, div_pk) = ensemble_diversity(&r.sequence, target);
+                (r, div_nested + div_pk)
+            })
+            .min_by(|(a, sa), (b, sb)| {
+                a.bp_distance
+                    .cmp(&b.bp_distance)
+                    .then(sa.total_cmp(sb))
+            })
+            .map(|(r, _)| r)
+        {
+            Some(repaired) if repaired.bp_distance < first_focused_check.bp_distance => {
                 println!(
                     "final mismatch-only repair improved: {} -> {}",
-                    final_check_result.bp_distance, repaired.bp_distance
+                    first_focused_check.bp_distance, repaired.bp_distance
                 );
 
-                repaired.sequence
+                repaired.sequence.clone()
             }
             _ => {
-                println!(
-                    "final mismatch-only repair made no improvement, keeping current sequence"
-                );
+                println!("final mismatch-only repair made no improvement, keeping current sequence");
 
                 full_seq
             }

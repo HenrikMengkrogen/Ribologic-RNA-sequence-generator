@@ -3,7 +3,8 @@ use std::process::Command;
 
 use crate::config::USE_ML_MODEL;
 
-pub fn call_model(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
+
+pub fn call_model(input_file: &str, n_starts: i64) -> Result<(), Box<dyn std::error::Error>> {
     if USE_ML_MODEL {
         println!("Calling ML model to generate seed sequences...");
     } else {
@@ -17,6 +18,8 @@ pub fn call_model(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
     let script = project_dir.join("Python").join("RUN_MODEL.py");
     let input = project_dir.join(input_file);
     let output = project_dir.join("Python").join("seeds.txt");
+
+    let n_seeds = if n_starts > 16 {n_starts} else {16}.to_string();
 
     eprintln!("Project directory: {}", project_dir.display());
     eprintln!("Python executable: {}", python.display());
@@ -46,7 +49,7 @@ pub fn call_model(input_file: &str) -> Result<(), Box<dyn std::error::Error>> {
         .arg("--output")
         .arg(&output)
         .arg("--n")
-        .arg("16")
+        .arg(n_seeds)
         .current_dir(&project_dir)
         .status()
         .map_err(|err| format!("Could not start Python at {}: {err}", python.display()))?;

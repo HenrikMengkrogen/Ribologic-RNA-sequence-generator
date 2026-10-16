@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("========================================");
 
             
-            call_model(input_path_str)?;
+            call_model(input_path_str, n_starts)?;
             
 
             let (seq, target_structure) = match read_input_file(input_path_str) {
