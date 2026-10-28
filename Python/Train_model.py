@@ -9,7 +9,7 @@ Training driver for ML_MODEL.py.
       reads Rust's training_data_positive/negative.txt -> one self-training round
       -> checkpoints/round_XX.pt + best.pt + buffer.jsonl; consumed Rust files are archived
 
-Expects ML_MODEL.py (your renamed seed_model.py, including read_design_file) in the same folder.
+Expects ML_MODEL.py in the same folder.
 """
 import argparse
 import json

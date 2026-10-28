@@ -17,7 +17,7 @@ use crate::pseudoknot::{
 use crate::ribosome::ribosome_similarity;
 use crate::structure::{
     find_conserved_positions, get_local_protected_positions, get_pair_map, get_pk_pairs,
-    identify_mismatches, important_motifs, strip_pseudoknots,replace_selected_positions,
+    identify_mismatches, important_motifs, strip_pseudoknots,replace_selected_positions, insert_placeholder,
 };
 use crate::types::{DesignResult, GlobalDesignResult, PkPrediction};
 
@@ -81,8 +81,8 @@ pub fn decomposed_hill_climb_design(
 
     let if_slices: bool = true;
     let slices = decompose(target).map_err(|e| e.to_string())?;
-
-    let mut seq = start_seq.as_bytes().to_vec();
+    let mut rng = rand::rng();
+    let mut seq: Vec<u8> = insert_placeholder(&start_seq, true, &mut rng)?.into_bytes();
     if RIBOSOMAL_RNA {
         let mut rng = rand::rng();
         let nucleotides = ['A', 'U', 'G', 'C'];
@@ -191,6 +191,8 @@ pub fn decomposed_hill_climb_design(
 
         let refine_set: HashSet<usize> = local_designable
             .iter()
+            .filter(|&&g| if RIBOSOMAL_RNA { ribo_set.contains(&g) }
+              else { matches!(start_seq.as_bytes()[g], b'N' | b'K' | b'S') })
             .chain(child_mismatches.iter())
             .copied()
             .collect();
@@ -334,22 +336,28 @@ pub fn decomposed_hill_climb_design(
                 }
             }
         }
-
-        let mut global_seed_string = global_seed_seq.clone();
-
-        merge_slice_into_global_seed(
-            &mut global_seed_string ,
-            sub.start,
-            sub.end,
-            &best.sequence,
-        )
-        .map_err(|error| {
-            format!(
-                "Failed to merge result from slice {} into global seed: {}",
+        let mut global_seed_seq = seed_seq.clone(); 
+        if best.sequence.len() != local_len {
+            return Err(format!(
+                "slice {} returned sequence of length {}, expected {}",
                 idx + 1,
-                error
-            )
-        })?;
+                best.sequence.len(),
+                local_len,
+            ));
+        }
+
+        
+        seq[sub.start..sub.end].copy_from_slice(best.sequence.as_bytes());
+
+        
+        merge_slice_into_global_seed(&mut global_seed_seq, sub.start, sub.end, &best.sequence)
+            .map_err(|error| {
+                format!(
+                    "Failed to merge result from slice {} into global seed: {}",
+                    idx + 1,
+                    error
+                )
+            })?;
 
         let merged_slice = &global_seed_seq[sub.start..sub.end];
 
@@ -415,34 +423,95 @@ pub fn decomposed_hill_climb_design(
             *c = if rng.random::<f64>() < 0.5 { 'G' } else { 'C' };
         }
     }
+    let global_designable_set: HashSet<usize> = global_designable.iter().copied().collect();
 
     let pk_pairs = get_pk_pairs(target);
-    if !pk_pairs.is_empty() {
-        let valid_pairs = [('A', 'U'), ('U', 'A'), ('G', 'C'), ('C', 'G')];
-        let mut n_pk_fixed = 0;
-        for &(i, j) in &pk_pairs {
-            if RIBOSOMAL_RNA && !ribo_set.contains(&i) && !ribo_set.contains(&j) {
-                continue;
+        if !pk_pairs.is_empty() {
+            let valid_pairs = [('A', 'U'), ('U', 'A'), ('G', 'C'), ('C', 'G')];
+
+            let complement = |c: char| -> Option<char> {
+                match c {
+                    'A' => Some('U'),
+                    'U' => Some('A'),
+                    'G' => Some('C'),
+                    'C' => Some('G'),
+                    _ => None,
+                }
+            };
+
+            // Does the input's ambiguity code allow this nucleotide at this position?
+            let allowed = |pos: usize, nuc: char| -> bool {
+                if RIBOSOMAL_RNA {
+                    return true;
+                }
+                match start_seq.as_bytes()[pos] {
+                    b'K' => matches!(nuc, 'G' | 'U'),
+                    b'S' => matches!(nuc, 'G' | 'C'),
+                    _ => true,
+                }
+            };
+
+            let mut n_pk_fixed = 0;
+            let mut n_pk_unfixable = 0;
+
+            for &(i, j) in &pk_pairs {
+                let (bi, bj) = (full_seq_chars[i], full_seq_chars[j]);
+                if valid_pairs.contains(&(bi, bj)) {
+                    continue;
+                }
+
+                let i_free = global_designable_set.contains(&i);
+                let j_free = global_designable_set.contains(&j);
+
+                let replacement: Option<(char, char)> = match (i_free, j_free) {
+                    // Both designable: random valid pair that respects K/S codes.
+                    (true, true) => {
+                        let options: Vec<(char, char)> = valid_pairs
+                            .iter()
+                            .copied()
+                            .filter(|&(a, b)| allowed(i, a) && allowed(j, b))
+                            .collect();
+                        options.choose(&mut rng).copied()
+                    }
+                    // Only i is designable: pair it with the fixed base at j.
+                    (true, false) => complement(bj)
+                        .filter(|&c| allowed(i, c))
+                        .map(|c| (c, bj)),
+                    // Only j is designable: pair it with the fixed base at i.
+                    (false, true) => complement(bi)
+                        .filter(|&c| allowed(j, c))
+                        .map(|c| (bi, c)),
+                    // Neither is designable: leave the user's bases alone.
+                    (false, false) => None,
+                };
+
+                match replacement {
+                    Some((ni, nj)) => {
+                        full_seq_chars[i] = ni;
+                        full_seq_chars[j] = nj;
+                        n_pk_fixed += 1;
+                    }
+                    None => n_pk_unfixable += 1,
+                }
             }
 
-            let (bi, bj) = (full_seq_chars[i], full_seq_chars[j]);
-            if !valid_pairs.contains(&(bi, bj)) {
-                let (ni, nj) = valid_pairs[rng.random_range(0..valid_pairs.len())];
-                full_seq_chars[i] = ni;
-                full_seq_chars[j] = nj;
-                n_pk_fixed += 1;
+            if n_pk_fixed > 0 {
+                println!("PK repair: fixed {} pseudoknotted pair(s)", n_pk_fixed);
+            }
+            if n_pk_unfixable > 0 {
+                println!(
+                    "PK repair: {} pseudoknotted pair(s) could not be made valid \
+                    (fixed bases or K/S restrictions)",
+                    n_pk_unfixable
+                );
             }
         }
-        if n_pk_fixed > 0 {
-            println!("PK repair: fixed {} pseudoknotted pair(s)", n_pk_fixed);
-        }
-    }
 
     let full_seq = full_seq_chars.into_iter().collect::<String>();
 
     println!("Proceeding to global check");
 
-    let global_designable_set: HashSet<usize> = global_designable.iter().copied().collect();
+    
 
     let pre_repair_result = bp_distance_to_target(&full_seq, target);
 
@@ -719,7 +788,7 @@ pub fn decomposed_hill_climb_design(
             })
             .map(|(r, _)| r)
         {
-            Some(repaired) if repaired.bp_distance < first_focused_check.bp_distance => {
+            Some(repaired) if final_check_result.bp_distance < first_focused_check.bp_distance => {
                 println!(
                     "final mismatch-only repair improved: {} -> {}",
                     first_focused_check.bp_distance, repaired.bp_distance

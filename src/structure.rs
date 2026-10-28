@@ -1,5 +1,10 @@
 use crate::types::Substructure;
 use std::collections::{HashMap, HashSet};
+use rand::RngExt;
+
+
+const NUCLEOTIDES: [char; 4] = ['A', 'U', 'G', 'C'];
+
 
 pub fn get_pair_map(structure: &str) -> HashMap<usize, usize> {
     let mut pair_map = HashMap::new();
@@ -329,3 +334,87 @@ pub fn replace_selected_positions(
     String::from_utf8(output)
         .map_err(|error| format!("Generated invalid UTF-8 sequence: {error}"))
 }
+
+fn comp(nuc: char) -> Result<char, String> {
+    match nuc {
+        'A' => Ok('U'),
+        'U' => Ok('A'),
+        'G' => Ok('C'),
+        'C' => Ok('G'),
+        _ => Err(format!("Invalid nucleotide: {nuc:?}")),
+    }
+}
+
+
+
+
+
+fn complement(seq: &str, reverse: bool) -> Result<String, String> {
+    let mut c: Vec<char> = seq.chars().map(comp).collect::<Result<_, _>>()?;
+    if reverse {
+        c.reverse();
+    }
+    Ok(c.into_iter().collect())
+}
+
+fn is_nucleotide(ch: char) -> bool {
+    NUCLEOTIDES.contains(&ch.to_ascii_uppercase())
+}
+
+
+fn runs(seq: &str) -> Vec<(char, usize)> {
+    let mut out: Vec<(char, usize)> = Vec::new();
+    for ch in seq.chars() {
+        match out.last_mut() {
+            Some((c, n)) if *c == ch => *n += 1,
+            _ => out.push((ch, 1)),
+        }
+    }
+    out
+}
+
+
+pub fn insert_placeholder<R: RngExt>(
+    seq: &str,
+    reverse: bool,
+    rng: &mut R,
+) -> Result<String, String> {
+    let runs = runs(seq);
+
+    
+    let mut lengths: HashMap<char, usize> = HashMap::new();
+    for &(ch, n) in &runs {
+        if !is_nucleotide(ch) {
+            let len = lengths.entry(ch.to_ascii_uppercase()).or_insert(0);
+            *len = (*len).max(n);
+        }
+    }
+
+    
+    let placeholder_seq: HashMap<char, String> = lengths
+        .iter()
+        .map(|(&key, &len)| {
+            let s: String = (0..len)
+                .map(|_| NUCLEOTIDES[rng.random_range(0..NUCLEOTIDES.len())])
+                .collect();
+            (key, s)
+        })
+        .collect();
+
+    
+    let mut out = String::with_capacity(seq.len());
+    for (ch, n) in runs {
+        if is_nucleotide(ch) {
+            out.extend(std::iter::repeat(ch).take(n));
+        } else {
+            let base = &placeholder_seq[&ch.to_ascii_uppercase()][..n]; // ASCII, so byte slicing is safe
+            if ch.is_ascii_uppercase() {
+                out.push_str(base);
+            } else {
+                out.push_str(&complement(base, reverse)?);
+            }
+        }
+    }
+    Ok(out)
+}
+

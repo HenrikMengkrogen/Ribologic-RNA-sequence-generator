@@ -1,0 +1,2 @@
+Sequence: NNNKNNNNNNNNKNNNNNNNNNNNNNNKNNNNNKNNNKNNNNNNNNNNNKNNNNNNNNNNNNKNNNNNNNNNNNKNNNKNNNNNNKNNNNNNNNNNNNNNKNNNNNNNNNKNNNNNNKNNNNNNNKNNNNNNNNNNNNNNNNKNNNNNNNKNNNNNNNNNNNNKNNNNKNNNNNNNNNNKNNNNKNNNNNNNNNNNNKNNNNNNKNNNNKNNNNNNNNNNNNKNNNNKNNNNNNKNNN
+Structure: ((((((((((((((((((....)))))))))((((((((......(((((((((....)))))))))......))))))))((((((((((....)))))))))))))))))))((((((((((((((((((....)))))))))))((((((((......(((((((((((....)))))))))))......))))))))(((((((((((((....))))))))))))))))))))

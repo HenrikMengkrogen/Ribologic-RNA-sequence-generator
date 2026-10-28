@@ -240,7 +240,7 @@ def random_seq(n):
     return "".join(random.choices(NUC, w, k=n))
 
 
-def synth_pairs(n_samples, lo=20, hi=100):
+def synth_pairs(n_samples, lo=80, hi=400):
     """(MFE structure, sequence, None) triples. The None means a fresh random constraint is
     derived every time the example is batched. TODO: broaden structure coverage."""
     out = []

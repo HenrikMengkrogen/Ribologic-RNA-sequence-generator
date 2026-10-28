@@ -40,6 +40,7 @@ pub fn hill_climb_design(
 
     let n_fixed = slice_len.saturating_sub(n_designable);
     let fixed_fraction = n_fixed as f64 / slice_len.max(1) as f64;
+    
 
     // let dist_threshold: i64 = ((n_fixed as f64) / 12.0).ceil() as i64;
 
@@ -88,6 +89,7 @@ pub fn hill_climb_design(
     ];
     let seq_in_chars: Vec<char> = seq_in.chars().collect();
     let comp_dict = HashMap::from([('A', 'U'), ('U', 'A'), ('G', 'C'), ('C', 'G')]);
+    
 
     let mut current = if RIBOSOMAL_RNA {
         mutate_ribosome(seq_in, target_structure, &n_positions)
@@ -350,7 +352,7 @@ pub fn hill_climb_design(
                             .get(&fixed_partner)
                             .expect("fixed paired position must contain A, U, G, or C"),
                     ];
-
+                    
                     for &nuc in &nucleotides {
                         let mut trial = candidate.clone();
                         trial[i] = nuc;
@@ -381,40 +383,51 @@ pub fn hill_climb_design(
                     let mut best_pair = current_pair;
                     let mut best_cost = f64::MAX;
 
-                    for &(ni, nj) in &pair_options {
-                        let mut trial = candidate.clone();
-                        trial[i] = ni;
-                        trial[j] = nj;
+                    let allowed_i = allowed_for(seq_in_chars[i]);
+                    let allowed_j = allowed_for(seq_in_chars[j]);
 
-                        let trial_str: String = trial.iter().collect();
+                    let valid_pairs: Vec<(char, char)> = pair_options
+                        .iter()
+                        .copied()
+                        .filter(|(ni, nj)| allowed_i.contains(ni) && allowed_j.contains(nj))
+                        .collect();
 
-                        let trial_result = bp_distance_to_target(&trial_str, target_structure);
+                    if !valid_pairs.is_empty() {
+                        for &(ni, nj) in &valid_pairs {
+                            let mut trial = candidate.clone();
+                            trial[i] = ni;
+                            trial[j] = nj;
 
-                        let pk_mismatches =
-                            pk_pair_mismatches(&trial_str, &pair_map, target_structure);
+                            let trial_str: String = trial.iter().collect();
 
-                        let trial_cost =
-                            trial_result.bp_distance as f64 + 2.0 * pk_mismatches as f64;
+                            let trial_result = bp_distance_to_target(&trial_str, target_structure);
 
-                        if trial_cost < best_cost {
-                            best_cost = trial_cost;
-                            best_pair = (ni, nj);
+                            let pk_mismatches =
+                                pk_pair_mismatches(&trial_str, &pair_map, target_structure);
+
+                            let trial_cost =
+                                trial_result.bp_distance as f64 + 2.0 * pk_mismatches as f64;
+
+                            if trial_cost < best_cost {
+                                best_cost = trial_cost;
+                                best_pair = (ni, nj);
+                            }
                         }
-                    }
 
-                    if best_pair == current_pair {
-                        best_pair = pair_options[rng.random_range(0..pair_options.len())];
-                    }
+                        if best_pair == current_pair {
+                            best_pair = valid_pairs[rng.random_range(0..valid_pairs.len())];
+                        }
 
-                    candidate[i] = best_pair.0;
-                    candidate[j] = best_pair.1;
+                        candidate[i] = best_pair.0;
+                        candidate[j] = best_pair.1;
+                    }
                 }
             } else {
                 let current_nuc = candidate[i];
                 let mut best_nuc = current_nuc;
                 let mut best_cost = f64::MAX;
-
-                for &nuc in &nucleotides {
+                let allowed = allowed_for(seq_in_chars[i]);
+                for &nuc in allowed{
                     let mut trial = candidate.clone();
                     trial[i] = nuc;
 
@@ -433,7 +446,7 @@ pub fn hill_climb_design(
                 }
 
                 if best_nuc == current_nuc {
-                    best_nuc = nucleotides[rng.random_range(0..nucleotides.len())];
+                    best_nuc = allowed[rng.random_range(0..allowed.len())];
                 }
 
                 candidate[i] = best_nuc;
@@ -723,4 +736,12 @@ pub fn multi_start_hill_climb_design(
         })
     });
     all_candidates
+}
+
+fn allowed_for(code: char) -> &'static [char] {
+    match code {
+        'K' => &['G', 'U'],
+        'S' => &['G', 'C'],
+        _   => &['A', 'U', 'G', 'C'], // N or anything else
+    }
 }

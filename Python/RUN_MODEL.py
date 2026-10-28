@@ -25,6 +25,87 @@ from ML_MODEL import load, sample_seeds
 HERE = Path(__file__).resolve().parent
 DEFAULT_CKPT = HERE / "checkpoints" / "best.pt"
 
+COMP = {'A': 'U', 'U': 'A', 'G': 'C', 'C': 'G'}
+NUCLEOTIDES = 'AUGC'
+SPECIAL_CASE = 'NKS'
+
+
+def comp(nuc):
+    if nuc not in COMP:
+        raise ValueError(f"Invalid nucleotide: {nuc!r}")
+    return COMP[nuc]
+
+
+def complement(seq, reverse=True):
+    """Complement of an RNA string. Reverse by default, so it pairs antiparallel."""
+    c = ''.join(comp(n) for n in seq)
+    return c[::-1] if reverse else c
+
+
+def insert_placeholder(seq, reverse=True, rng=random):
+    """
+    Replace placeholder letters with random sequences.
+      - Uppercase placeholder (X, Q, ...): random sequence, same everywhere.
+      - Lowercase placeholder (x, q, ...): complement of that sequence.
+    Placeholder lengths are taken from the longest run of the uppercase
+    or lowercase letter in the input.
+    """
+    seq_chars = list(seq)
+
+    
+    placeholders = []
+    for ch in seq:
+        key = ch.upper()
+        if key not in NUCLEOTIDES and key not in placeholders and key not in SPECIAL_CASE:
+            placeholders.append(key)
+
+    
+    lengths = {p: 0 for p in placeholders}
+    i = 0
+    while i < len(seq):
+        key = seq[i].upper()
+        if key in lengths:
+            j = i
+            while j < len(seq) and seq[j].upper() == key and seq[j].isupper() == seq[i].isupper():
+                j += 1
+            lengths[key] = max(lengths[key], j - i)
+            i = j
+        else:
+            i += 1
+
+    
+    placeholder_seq = {
+        p: ''.join(rng.choice(NUCLEOTIDES) for _ in range(lengths[p]))
+        for p in placeholders
+    }
+
+    
+    out = []
+    i = 0
+    while i < len(seq):
+        ch = seq[i]
+        key = ch.upper()
+        if key in placeholder_seq:
+            j = i
+            while j < len(seq) and seq[j] == ch:
+                j += 1
+            run_len = j - i
+            base = placeholder_seq[key]
+            if ch.isupper():
+                out.append(base[:run_len])
+            else:
+                # Complement the portion this run covers
+                out.append(complement(base, reverse=reverse)[:run_len]
+                           if not reverse else
+                           complement(base[:run_len], reverse=True))
+            i = j
+        else:
+            out.append(ch)
+            i += 1
+
+    return ''.join(out)
+
+    
 
 def read_targets(path):
     """Parse 'Sequence : <constraint>' / 'Structure : <dot-bracket>' blocks -> list of (db, cons)."""
@@ -41,6 +122,7 @@ def read_targets(path):
                 db = val
             if cons and db:
                 db = db.replace("[", ".").replace("]", ".").replace("{", "(").replace("}", ")")
+                cons = insert_placeholder(cons)
                 targets.append((db, cons))
                 cons = db = None
     return targets
