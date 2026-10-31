@@ -1,3 +1,2 @@
-Sequence: NNNKNNNNKNNNNNNKNAANNNNNNANKNNNNSSSNNNNNUUCGNNNNNNNNNKNAANNNNNNANKNNNNNNKNNNNAANNNNNNANNNNKNNSSSNKNNNNAANNNNNNANNNNKNNNKNNNNKNNNNKNNNNNKNNNSSSNNNKNAANNNNNNANKNNNNNNKNNNAANNNNNNANNNKNNNNNNNKNNNAANNNNNNANNNKNNNNSSSNKNNNUUCGNNNKNNNKNNNNAANNNNNNANNNNKNNNNNKNNNNNKN
-Structure: (((((((((((((((((.........))))))((((((((....)))))((((((.........))))))(((((((..[[[[[[.))))))))))((((((..[[[[[[.)))))))))))))))))(((((((((((((((((((..]]]]]].)))))(((((((..]]]]]].)))))))((((((((.........)))))))))))(((((....)))))(((((((.........))))))))))))))))))
-
+Sequence: NNNSSNNKNNNNNNNNNNKNNNNNNNNKNNNNNNNNNNNNNNNNNNNNNKNNNSNNNNSNNKNNNNNKNNNNKNNNNNNNNNNKNNNNKNNNNKNNNNSS
+Structure: ...((((((......((((((....))))))(((((.....)))))((((((.(....)))))))(((((((((((....))))))))))).))))..))
